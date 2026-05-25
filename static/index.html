@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kaizen Assistant — Gestão de Melhoria Contínua</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<!-- ============ SIDEBAR ============ -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">⚡</div>
+    <div>
+      <h1>Kaizen Assistant</h1>
+      <span>Melhoria Contínua Industrial</span>
+    </div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section-title">Principal</div>
+    <div class="nav-item active" data-view="dashboard">
+      <span class="nav-icon">📊</span> Dashboard
+    </div>
+    <div class="nav-item" data-view="problems">
+      <span class="nav-icon">📋</span> Problemas Kaizen
+    </div>
+    <div class="nav-item" data-view="new-problem">
+      <span class="nav-icon">➕</span> Novo Problema
+    </div>
+    <div class="nav-item" data-view="actions">
+      <span class="nav-icon">⚙️</span> Tracker de Ações
+    </div>
+  </nav>
+  <div class="sidebar-footer">
+    ✨ Com IA Groq · LLaMA 3.3 70B
+  </div>
+</aside>
+
+<!-- ============ MAIN ============ -->
+<main class="main">
+  <header class="topbar">
+    <div>
+      <div class="topbar-title" id="topbar-title">Dashboard</div>
+      <div class="topbar-subtitle">Gestão de Kaizen e Melhoria Contínua</div>
+    </div>
+    <button class="btn btn-primary" onclick="navigate('new-problem')">
+      ➕ Novo Problema
+    </button>
+  </header>
+
+  <div class="content">
+
+    <!-- ============ DASHBOARD ============ -->
+    <div class="view active" id="view-dashboard">
+      <div class="kpi-grid">
+        <div class="kpi-card blue">
+          <span class="kpi-label">Total Kaizens</span>
+          <span class="kpi-value" id="kpi-total">0</span>
+          <span class="kpi-sub">Todos os registos</span>
+        </div>
+        <div class="kpi-card orange">
+          <span class="kpi-label">Em Aberto</span>
+          <span class="kpi-value" id="kpi-open">0</span>
+          <span class="kpi-sub">Aguardam análise</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-label">Em Progresso</span>
+          <span class="kpi-value" id="kpi-progress">0</span>
+          <span class="kpi-sub">A ser trabalhados</span>
+        </div>
+        <div class="kpi-card green">
+          <span class="kpi-label">Concluídos</span>
+          <span class="kpi-value" id="kpi-completed">0</span>
+          <span class="kpi-sub">Problemas resolvidos</span>
+        </div>
+        <div class="kpi-card green">
+          <span class="kpi-label">Taxa de Conclusão</span>
+          <span class="kpi-value" id="kpi-rate">0%</span>
+          <div class="kpi-bar"><div class="kpi-bar-fill" id="kpi-rate-bar" style="width:0%"></div></div>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-label">Total de Ações</span>
+          <span class="kpi-value" id="kpi-actions">0</span>
+          <span class="kpi-sub">Taxa: <b id="kpi-action-rate">0%</b></span>
+          <div class="kpi-bar"><div class="kpi-bar-fill" id="kpi-action-bar" style="width:0%"></div></div>
+        </div>
+        <div class="kpi-card red">
+          <span class="kpi-label">Ações Atrasadas</span>
+          <span class="kpi-value" id="kpi-overdue">0</span>
+          <span class="kpi-sub">Prazo ultrapassado</span>
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-bottom:20px">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">📊 Problemas por Prioridade</span>
+          </div>
+          <div class="card-body">
+            <div id="priority-chart"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">🏭 Problemas por Área (Top 5)</span>
+          </div>
+          <div class="card-body">
+            <div id="area-chart"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">🔴 Problemas em Aberto Recentes</span>
+          <button class="btn btn-sm btn-secondary" onclick="navigate('problems')">Ver todos</button>
+        </div>
+        <div class="card-body" style="padding:0">
+          <div id="recent-problems"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ PROBLEMS ============ -->
+    <div class="view" id="view-problems">
+      <div class="filters">
+        <select id="filter-status">
+          <option value="">Todos os estados</option>
+          <option value="open">Aberto</option>
+          <option value="in_progress">Em Progresso</option>
+          <option value="completed">Concluído</option>
+          <option value="cancelled">Cancelado</option>
+        </select>
+        <select id="filter-priority">
+          <option value="">Todas as prioridades</option>
+          <option value="critical">Crítica</option>
+          <option value="high">Alta</option>
+          <option value="medium">Média</option>
+          <option value="low">Baixa</option>
+        </select>
+        <input id="filter-area" placeholder="Filtrar por área..." style="min-width:180px">
+        <button class="btn btn-primary" onclick="navigate('new-problem')">➕ Novo Problema</button>
+      </div>
+      <div class="card">
+        <div id="problems-list"></div>
+      </div>
+    </div>
+
+    <!-- ============ NEW PROBLEM ============ -->
+    <div class="view" id="view-new-problem">
+      <div class="card" style="max-width:680px">
+        <div class="card-header">
+          <span class="card-title">➕ Registar Novo Problema Kaizen</span>
+        </div>
+        <div class="card-body">
+          <form id="problem-form">
+            <div class="form-group">
+              <label for="p-title">Título do Problema *</label>
+              <input id="p-title" type="text" placeholder="Ex: Paragem não planeada na linha de montagem 3" required>
+            </div>
+            <div class="form-group">
+              <label for="p-description">Descrição Detalhada *</label>
+              <textarea id="p-description" placeholder="Descreva o problema em detalhe: o que aconteceu, quando, qual o impacto..." rows="5" required></textarea>
+            </div>
+            <div class="grid-2">
+              <div class="form-group">
+                <label for="p-area">Área / Setor *</label>
+                <input id="p-area" type="text" placeholder="Ex: Linha de Montagem 3, Armazém A..." required>
+              </div>
+              <div class="form-group">
+                <label for="p-responsible">Responsável *</label>
+                <input id="p-responsible" type="text" placeholder="Nome do responsável" required>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="p-priority">Prioridade *</label>
+              <select id="p-priority" required>
+                <option value="">Selecionar prioridade</option>
+                <option value="low">🟢 Baixa — Impacto mínimo</option>
+                <option value="medium">🟡 Média — Atenção necessária</option>
+                <option value="high">🔴 Alta — Ação urgente</option>
+                <option value="critical">🟣 Crítica — Paragem de produção</option>
+              </select>
+            </div>
+            <div class="flex gap-2">
+              <button type="submit" class="btn btn-primary">Registar Problema</button>
+              <button type="button" class="btn btn-secondary" onclick="navigate('problems')">Cancelar</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ ACTIONS VIEW ============ -->
+    <div class="view" id="view-actions">
+      <div class="filters">
+        <select id="action-filter-status">
+          <option value="">Todos os estados</option>
+          <option value="pending">Pendente</option>
+          <option value="in_progress">Em Progresso</option>
+          <option value="completed">Concluída</option>
+          <option value="overdue">Atrasada</option>
+        </select>
+      </div>
+      <div class="card">
+        <div id="actions-list"></div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</main>
+
+<!-- ============ MODAL: EDIT PROBLEM ============ -->
+<div class="modal-overlay" id="modal-edit">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">✏️ Editar Problema</span>
+      <button class="btn btn-sm btn-secondary btn-icon" data-close-modal="modal-edit">✕</button>
+    </div>
+    <div class="modal-body">
+      <form id="edit-form">
+        <input type="hidden" id="edit-id">
+        <div class="form-group">
+          <label>Título</label>
+          <input id="edit-title" type="text" required>
+        </div>
+        <div class="form-group">
+          <label>Descrição</label>
+          <textarea id="edit-description" rows="4" required></textarea>
+        </div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label>Área</label>
+            <input id="edit-area" type="text" required>
+          </div>
+          <div class="form-group">
+            <label>Responsável</label>
+            <input id="edit-responsible" type="text" required>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label>Prioridade</label>
+            <select id="edit-priority">
+              <option value="low">Baixa</option>
+              <option value="medium">Média</option>
+              <option value="high">Alta</option>
+              <option value="critical">Crítica</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Estado</label>
+            <select id="edit-status">
+              <option value="open">Aberto</option>
+              <option value="in_progress">Em Progresso</option>
+              <option value="completed">Concluído</option>
+              <option value="cancelled">Cancelado</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer" style="padding:0;margin-top:4px">
+          <button type="button" class="btn btn-secondary" data-close-modal="modal-edit">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar Alterações</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: PROBLEM DETAIL ============ -->
+<div class="modal-overlay" id="modal-detail">
+  <div class="modal" style="max-width:900px">
+    <div class="modal-header">
+      <div style="flex:1">
+        <div class="modal-title" id="detail-title"></div>
+        <div style="margin-top:6px" id="detail-badges"></div>
+      </div>
+      <button class="btn btn-sm btn-secondary btn-icon" data-close-modal="modal-detail">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- Info -->
+      <div class="detail-section">
+        <div id="detail-info"></div>
+      </div>
+
+      <!-- Tabs -->
+      <div style="border-bottom:2px solid var(--gray-200);margin-bottom:20px;display:flex;gap:0">
+        <button class="tab-btn active" data-tab-group="detail" data-tab="5w1h"
+          style="padding:10px 18px;background:none;border:none;cursor:pointer;font-size:14px;font-weight:600;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--gray-500)">
+          🔍 Análise 5W1H
+        </button>
+        <button class="tab-btn" data-tab-group="detail" data-tab="a3"
+          style="padding:10px 18px;background:none;border:none;cursor:pointer;font-size:14px;font-weight:600;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--gray-500)">
+          📄 Relatório A3
+        </button>
+        <button class="tab-btn" data-tab-group="detail" data-tab="suggestions"
+          style="padding:10px 18px;background:none;border:none;cursor:pointer;font-size:14px;font-weight:600;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--gray-500)">
+          💡 Sugestões IA
+        </button>
+        <button class="tab-btn" data-tab-group="detail" data-tab="actions"
+          style="padding:10px 18px;background:none;border:none;cursor:pointer;font-size:14px;font-weight:600;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--gray-500)">
+          ⚙️ Ações
+        </button>
+      </div>
+
+      <div class="tab-pane active" data-tab-group="detail" data-tab="5w1h">
+        <div id="detail-5w1h"></div>
+      </div>
+      <div class="tab-pane" data-tab-group="detail" data-tab="a3">
+        <div id="detail-a3"></div>
+      </div>
+      <div class="tab-pane" data-tab-group="detail" data-tab="suggestions">
+        <div id="detail-suggestions"></div>
+      </div>
+      <div class="tab-pane" data-tab-group="detail" data-tab="actions">
+        <div id="detail-actions"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: ADD ACTION ============ -->
+<div class="modal-overlay" id="modal-action">
+  <div class="modal" style="max-width:540px">
+    <div class="modal-header">
+      <span class="modal-title">⚙️ Adicionar Ação</span>
+      <button class="btn btn-sm btn-secondary btn-icon" data-close-modal="modal-action">✕</button>
+    </div>
+    <div class="modal-body">
+      <form id="action-form">
+        <input type="hidden" id="action-problem-id">
+        <div class="form-group">
+          <label>Título da Ação *</label>
+          <input id="action-title" type="text" placeholder="Ex: Substituir vedante da bomba A2" required>
+        </div>
+        <div class="form-group">
+          <label>Descrição</label>
+          <textarea id="action-desc" rows="3" placeholder="Detalhes adicionais sobre esta ação..."></textarea>
+        </div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label>Responsável *</label>
+            <input id="action-responsible" type="text" required>
+          </div>
+          <div class="form-group">
+            <label>Prazo *</label>
+            <input id="action-deadline" type="date" required>
+          </div>
+        </div>
+        <div class="modal-footer" style="padding:0;margin-top:4px">
+          <button type="button" class="btn btn-secondary" data-close-modal="modal-action">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Adicionar Ação</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ============ TOAST ============ -->
+<div id="toast-container"></div>
+
+<style>
+  /* Tab active styling */
+  .tab-btn.active {
+    color: var(--primary) !important;
+    border-bottom-color: var(--primary) !important;
+  }
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+  .text-danger { color: var(--danger) !important; }
+</style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="/static/js/app.js"></script>
+</body>
+</html>

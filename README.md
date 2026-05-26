@@ -298,7 +298,6 @@ O endpoint `/api/seed` (acessível pelo botão no dashboard) popula a base de da
 
 **João Rocha**  
 Estudante de Engenharia e Gestão Industrial — FEUP  
-[github.com/inficlaudio](https://github.com/inficlaudio)
 
 ---
 

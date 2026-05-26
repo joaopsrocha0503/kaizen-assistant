@@ -216,7 +216,6 @@ Editar o ficheiro `.env` e preencher:
 
 ```env
 GROQ_API_KEY=gsk_xxxxxxxxxxxxxxxxxxxx
-FLASK_SECRET_KEY=qualquer_string_aleatoria
 ```
 
 ```bash

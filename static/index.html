@@ -13,7 +13,7 @@
 <!-- ============ SIDEBAR ============ -->
 <aside class="sidebar">
   <div class="sidebar-logo">
-    <div class="logo-icon">⚡</div>
+    <div class="logo-icon"><i data-lucide="zap"></i></div>
     <div>
       <h1>Kaizen Assistant</h1>
       <span>Melhoria Contínua Industrial</span>
@@ -22,20 +22,20 @@
   <nav class="sidebar-nav">
     <div class="nav-section-title">Principal</div>
     <div class="nav-item active" data-view="dashboard">
-      <span class="nav-icon">📊</span> Dashboard
+      <span class="nav-icon"><i data-lucide="layout-dashboard"></i></span> Dashboard
     </div>
     <div class="nav-item" data-view="problems">
-      <span class="nav-icon">📋</span> Problemas Kaizen
+      <span class="nav-icon"><i data-lucide="clipboard-list"></i></span> Problemas Kaizen
     </div>
     <div class="nav-item" data-view="new-problem">
-      <span class="nav-icon">➕</span> Novo Problema
+      <span class="nav-icon"><i data-lucide="plus"></i></span> Novo Problema
     </div>
     <div class="nav-item" data-view="actions">
-      <span class="nav-icon">⚙️</span> Tracker de Ações
+      <span class="nav-icon"><i data-lucide="list-checks"></i></span> Tracker de Ações
     </div>
   </nav>
   <div class="sidebar-footer">
-    ✨ Com IA Groq · LLaMA 3.3 70B
+    Com IA Groq · LLaMA 3.3 70B
   </div>
 </aside>
 
@@ -47,7 +47,7 @@
       <div class="topbar-subtitle">Gestão de Kaizen e Melhoria Contínua</div>
     </div>
     <button class="btn btn-primary" onclick="navigate('new-problem')">
-      ➕ Novo Problema
+      <i data-lucide="plus"></i> Novo Problema
     </button>
   </header>
 
@@ -98,7 +98,7 @@
 
       <div class="card" style="margin-bottom:20px">
         <div class="card-header">
-          <span class="card-title">📈 Evolução de Kaizens — Últimos 6 Meses</span>
+          <span class="card-title"><i data-lucide="trending-up"></i> Evolução de Kaizens — Últimos 6 Meses</span>
         </div>
         <div class="card-body" style="padding-bottom:12px">
           <div style="position:relative;height:200px">
@@ -110,7 +110,7 @@
       <div class="grid-2" style="margin-bottom:20px">
         <div class="card">
           <div class="card-header">
-            <span class="card-title">📊 Problemas por Prioridade</span>
+            <span class="card-title"><i data-lucide="bar-chart-3"></i> Problemas por Prioridade</span>
           </div>
           <div class="card-body">
             <div id="priority-chart"></div>
@@ -118,7 +118,7 @@
         </div>
         <div class="card">
           <div class="card-header">
-            <span class="card-title">🏭 Problemas por Área (Top 5)</span>
+            <span class="card-title"><i data-lucide="factory"></i> Problemas por Área (Top 5)</span>
           </div>
           <div class="card-body">
             <div id="area-chart"></div>
@@ -128,7 +128,7 @@
 
       <div class="card">
         <div class="card-header">
-          <span class="card-title">🔴 Problemas em Aberto Recentes</span>
+          <span class="card-title"><i data-lucide="circle-alert"></i> Problemas em Aberto Recentes</span>
           <button class="btn btn-sm btn-secondary" onclick="navigate('problems')">Ver todos</button>
         </div>
         <div class="card-body" style="padding:0">
@@ -142,7 +142,7 @@
           <span style="font-size:13px;color:var(--gray-400);margin-left:6px">Carregue dados industriais de exemplo para explorar todas as funcionalidades.</span>
         </div>
         <button class="btn btn-sm btn-secondary" onclick="seedDatabase()" id="btn-seed" style="white-space:nowrap;flex-shrink:0">
-          🏭 Carregar Dados de Exemplo
+          <i data-lucide="database"></i> Carregar Dados de Exemplo
         </button>
       </div>
     </div>
@@ -165,7 +165,7 @@
           <option value="low">Baixa</option>
         </select>
         <input id="filter-area" placeholder="Filtrar por área..." style="min-width:180px">
-        <button class="btn btn-primary" onclick="navigate('new-problem')">➕ Novo Problema</button>
+        <button class="btn btn-primary" onclick="navigate('new-problem')"><i data-lucide="plus"></i> Novo Problema</button>
       </div>
       <div class="card">
         <div id="problems-list"></div>
@@ -176,7 +176,7 @@
     <div class="view" id="view-new-problem">
       <div class="card" style="max-width:680px">
         <div class="card-header">
-          <span class="card-title">➕ Registar Novo Problema Kaizen</span>
+          <span class="card-title"><i data-lucide="plus"></i> Registar Novo Problema Kaizen</span>
         </div>
         <div class="card-body">
           <form id="problem-form">
@@ -202,10 +202,10 @@
               <label for="p-priority">Prioridade *</label>
               <select id="p-priority" required>
                 <option value="">Selecionar prioridade</option>
-                <option value="low">🟢 Baixa — Impacto mínimo</option>
-                <option value="medium">🟡 Média — Atenção necessária</option>
-                <option value="high">🔴 Alta — Ação urgente</option>
-                <option value="critical">🟣 Crítica — Paragem de produção</option>
+                <option value="low">Baixa — Impacto mínimo</option>
+                <option value="medium">Média — Atenção necessária</option>
+                <option value="high">Alta — Ação urgente</option>
+                <option value="critical">Crítica — Paragem de produção</option>
               </select>
             </div>
             <div class="flex gap-2">
@@ -227,7 +227,7 @@
           <option value="completed">Concluída</option>
           <option value="overdue">Atrasada</option>
         </select>
-        <button class="btn btn-secondary" onclick="exportActionsExcel()">⬇ Exportar Excel</button>
+        <button class="btn btn-secondary" onclick="exportActionsExcel()"><i data-lucide="download"></i> Exportar Excel</button>
       </div>
       <div class="card">
         <div id="actions-list"></div>
@@ -241,8 +241,8 @@
 <div class="modal-overlay" id="modal-edit">
   <div class="modal">
     <div class="modal-header">
-      <span class="modal-title">✏️ Editar Problema</span>
-      <button class="btn btn-sm btn-secondary btn-icon" data-close-modal="modal-edit">✕</button>
+      <span class="modal-title"><i data-lucide="pencil"></i> Editar Problema</span>
+      <button class="btn btn-sm btn-secondary btn-icon" data-close-modal="modal-edit"><i data-lucide="x"></i></button>
     </div>
     <div class="modal-body">
       <form id="edit-form">
@@ -302,7 +302,7 @@
         <div class="modal-title" id="detail-title"></div>
         <div style="margin-top:6px" id="detail-badges"></div>
       </div>
-      <button class="btn btn-sm btn-secondary btn-icon" data-close-modal="modal-detail">✕</button>
+      <button class="btn btn-sm btn-secondary btn-icon" data-close-modal="modal-detail"><i data-lucide="x"></i></button>
     </div>
     <div class="modal-body">
 
@@ -315,19 +315,19 @@
       <div style="border-bottom:2px solid var(--gray-200);margin-bottom:20px;display:flex;gap:0">
         <button class="tab-btn active" data-tab-group="detail" data-tab="5w1h"
           style="padding:10px 18px;background:none;border:none;cursor:pointer;font-size:14px;font-weight:600;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--gray-500)">
-          🔍 Análise 5W1H
+          <i data-lucide="search"></i> Análise 5W1H
         </button>
         <button class="tab-btn" data-tab-group="detail" data-tab="a3"
           style="padding:10px 18px;background:none;border:none;cursor:pointer;font-size:14px;font-weight:600;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--gray-500)">
-          📄 Relatório A3
+          <i data-lucide="file-text"></i> Relatório A3
         </button>
         <button class="tab-btn" data-tab-group="detail" data-tab="suggestions"
           style="padding:10px 18px;background:none;border:none;cursor:pointer;font-size:14px;font-weight:600;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--gray-500)">
-          💡 Sugestões IA
+          <i data-lucide="lightbulb"></i> Sugestões IA
         </button>
         <button class="tab-btn" data-tab-group="detail" data-tab="actions"
           style="padding:10px 18px;background:none;border:none;cursor:pointer;font-size:14px;font-weight:600;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--gray-500)">
-          ⚙️ Ações
+          <i data-lucide="settings"></i> Ações
         </button>
       </div>
 
@@ -352,8 +352,8 @@
 <div class="modal-overlay" id="modal-action">
   <div class="modal" style="max-width:540px">
     <div class="modal-header">
-      <span class="modal-title">⚙️ Adicionar Ação</span>
-      <button class="btn btn-sm btn-secondary btn-icon" data-close-modal="modal-action">✕</button>
+      <span class="modal-title"><i data-lucide="settings"></i> Adicionar Ação</span>
+      <button class="btn btn-sm btn-secondary btn-icon" data-close-modal="modal-action"><i data-lucide="x"></i></button>
     </div>
     <div class="modal-body">
       <form id="action-form">
@@ -388,20 +388,10 @@
 <!-- ============ TOAST ============ -->
 <div id="toast-container"></div>
 
-<style>
-  /* Tab active styling */
-  .tab-btn.active {
-    color: var(--primary) !important;
-    border-bottom-color: var(--primary) !important;
-  }
-  .tab-pane { display: none; }
-  .tab-pane.active { display: block; }
-  .text-danger { color: var(--danger) !important; }
-</style>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
 <script src="/static/js/app.js"></script>
 </body>
 </html>

@@ -9,8 +9,8 @@
   --warning-light: #fef3c7;
   --danger: #dc2626;
   --danger-light: #fee2e2;
-  --critical: #7c3aed;
-  --critical-light: #ede9fe;
+  --critical: #991b1b;
+  --critical-light: #fde2e2;
   --gray-50: #f8fafc;
   --gray-100: #f1f5f9;
   --gray-200: #e2e8f0;
@@ -343,7 +343,7 @@ textarea { resize: vertical; min-height: 90px; }
 .badge-low { background: var(--success-light); color: #14532d; }
 .badge-medium { background: var(--warning-light); color: #92400e; }
 .badge-high { background: var(--danger-light); color: #991b1b; }
-.badge-critical { background: var(--critical-light); color: #4c1d95; }
+.badge-critical { background: var(--critical-light); color: #7f1d1d; }
 
 /* ---- TABLE ---- */
 .table-wrap { overflow-x: auto; }
@@ -749,7 +749,7 @@ tbody tr:last-child { border-bottom: none; }
 .progress-fill {
   height: 100%;
   border-radius: 9999px;
-  background: linear-gradient(90deg, var(--primary), var(--secondary));
+  background: var(--primary);
   transition: width .6s ease;
 }
 
@@ -800,7 +800,7 @@ tbody tr:last-child { border-bottom: none; }
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: var(--gray-700);
   color: #fff;
   font-size: 10px;
   font-weight: 700;
@@ -956,6 +956,41 @@ tbody tr:last-child { border-bottom: none; }
 .alert-deadline.dl-critical { color: var(--danger); }
 .alert-deadline.dl-warning  { color: var(--warning); }
 .alert-deadline.dl-normal   { color: var(--gray-500); }
+
+/* ---- TABS (problem detail modal) ---- */
+.tab-btn.active {
+  color: var(--primary) !important;
+  border-bottom-color: var(--primary) !important;
+}
+.tab-pane { display: none; }
+.tab-pane.active { display: block; }
+.text-danger { color: var(--danger) !important; }
+
+/* ---- LUCIDE ICONS ---- */
+svg.lucide {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2;
+  flex-shrink: 0;
+  vertical-align: -3px;
+}
+.btn svg.lucide { width: 15px; height: 15px; }
+.btn-icon svg.lucide { width: 16px; height: 16px; vertical-align: 0; }
+.btn-sm svg.lucide { width: 14px; height: 14px; }
+.nav-item .nav-icon { display: inline-flex; align-items: center; justify-content: center; width: 20px; }
+.nav-item .nav-icon svg.lucide { width: 18px; height: 18px; vertical-align: 0; }
+.sidebar-logo .logo-icon svg.lucide { width: 20px; height: 20px; color: #fff; vertical-align: 0; }
+.alerts-panel-icon svg.lucide { width: 18px; height: 18px; vertical-align: 0; color: #92400e; }
+.card-title svg.lucide { width: 16px; height: 16px; vertical-align: -3px; margin-right: 6px; color: var(--gray-500); }
+.empty-state .empty-icon svg.lucide { width: 40px; height: 40px; vertical-align: 0; }
+.tab-btn svg.lucide { width: 14px; height: 14px; vertical-align: -2px; margin-right: 4px; }
+.modal-title svg.lucide { width: 16px; height: 16px; vertical-align: -3px; margin-right: 6px; }
+.action-check svg.lucide { width: 12px; height: 12px; vertical-align: 0; }
+.action-deadline svg.lucide { width: 13px; height: 13px; vertical-align: -2px; margin-right: 3px; color: var(--gray-400); }
+.action-deadline.overdue svg.lucide { color: var(--danger); }
+.alert-deadline svg.lucide { width: 13px; height: 13px; vertical-align: -2px; margin-right: 3px; }
+.ai-badge svg.lucide { width: 11px; height: 11px; vertical-align: -1px; }
+.topbar-title svg.lucide { display: none; }
 
 @media (max-width: 900px) {
   .sidebar { transform: translateX(-100%); }

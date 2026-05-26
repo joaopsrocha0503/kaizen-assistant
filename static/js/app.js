@@ -46,6 +46,13 @@ function loading(id) {
   document.getElementById(id).innerHTML = `<div class="loading"><div class="spinner"></div> A carregar...</div>`;
 }
 
+// Renderiza ícones Lucide injetados dinamicamente
+function renderIcons() {
+  if (window.lucide && typeof window.lucide.createIcons === "function") {
+    window.lucide.createIcons();
+  }
+}
+
 // ---- NAV ----
 
 function navigate(view) {
@@ -176,18 +183,19 @@ function renderAlertsPanel(actions) {
         <div class="alert-action-title">${a.title}</div>
         <div class="alert-meta">${a.problem_title} &middot; ${a.responsible}</div>
       </div>
-      <span class="alert-deadline ${dlClass}">📅 ${dl}</span>
+      <span class="alert-deadline ${dlClass}"><i data-lucide="calendar"></i>${dl}</span>
     </div>`;
   }).join("");
 
   el.innerHTML = `<div class="alerts-panel">
     <div class="alerts-panel-header">
-      <span class="alerts-panel-icon">⚠️</span>
+      <span class="alerts-panel-icon"><i data-lucide="alert-triangle"></i></span>
       <span class="alerts-panel-title">Ações com Prazo nos Próximos 7 Dias</span>
       <span class="alerts-panel-count">${actions.length}</span>
     </div>
     ${rows}
   </div>`;
+  renderIcons();
 }
 
 async function loadDashboard() {
@@ -208,7 +216,7 @@ async function loadDashboard() {
   // By priority
   const pDiv = document.getElementById("priority-chart");
   const priorities = ["critical", "high", "medium", "low"];
-  const pColors = { critical: "#7c3aed", high: "#dc2626", medium: "#d97706", low: "#16a34a" };
+  const pColors = { critical: "#991b1b", high: "#dc2626", medium: "#d97706", low: "#16a34a" };
   const pLabels = { critical: "Crítica", high: "Alta", medium: "Média", low: "Baixa" };
   const maxPVal = Math.max(...priorities.map(p => kpis.by_priority[p] || 0), 1);
   pDiv.innerHTML = priorities.map(p => {
@@ -250,7 +258,7 @@ async function loadDashboard() {
   renderAlertsPanel(upcoming);
   const recentEl = document.getElementById("recent-problems");
   if (recent.length === 0) {
-    recentEl.innerHTML = `<div class="empty-state"><div class="empty-icon">✅</div><p>Nenhum problema aberto</p></div>`;
+    recentEl.innerHTML = `<div class="empty-state"><div class="empty-icon"><i data-lucide="check-circle-2"></i></div><p>Nenhum problema aberto</p></div>`;
   } else {
     recentEl.innerHTML = `<div class="table-wrap"><table>
       <thead><tr><th>Título</th><th>Área</th><th>Responsável</th><th>Prioridade</th><th>Data</th></tr></thead>
@@ -263,6 +271,7 @@ async function loadDashboard() {
       </tr>`).join("")}</tbody>
     </table></div>`;
   }
+  renderIcons();
 }
 
 // ---- PROBLEMS ----
@@ -279,7 +288,8 @@ async function loadProblems() {
 function renderProblemsTable(problems) {
   const el = document.getElementById("problems-list");
   if (problems.length === 0) {
-    el.innerHTML = `<div class="empty-state"><div class="empty-icon">📋</div><p>Nenhum problema encontrado</p></div>`;
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon"><i data-lucide="clipboard-list"></i></div><p>Nenhum problema encontrado</p></div>`;
+    renderIcons();
     return;
   }
   el.innerHTML = `<div class="table-wrap"><table>
@@ -297,13 +307,14 @@ function renderProblemsTable(problems) {
       <td>${formatDate(p.created_at)}</td>
       <td>
         <div class="flex gap-2">
-          <button class="btn btn-sm btn-secondary btn-icon" title="Ver detalhe" onclick="openProblemDetail(${p.id})">👁</button>
-          <button class="btn btn-sm btn-secondary btn-icon" title="Editar" onclick="openEditProblem(${p.id})">✏️</button>
-          <button class="btn btn-sm btn-danger btn-icon" title="Apagar" onclick="deleteProblem(${p.id})">🗑</button>
+          <button class="btn btn-sm btn-secondary btn-icon" title="Ver detalhe" onclick="openProblemDetail(${p.id})"><i data-lucide="eye"></i></button>
+          <button class="btn btn-sm btn-secondary btn-icon" title="Editar" onclick="openEditProblem(${p.id})"><i data-lucide="pencil"></i></button>
+          <button class="btn btn-sm btn-danger btn-icon" title="Apagar" onclick="deleteProblem(${p.id})"><i data-lucide="trash-2"></i></button>
         </div>
       </td>
     </tr>`).join("")}</tbody>
   </table></div>`;
+  renderIcons();
 }
 
 document.getElementById("filter-status").addEventListener("change", e => {
@@ -433,7 +444,7 @@ async function openProblemDetail(id) {
   } else {
     w5el.innerHTML = `<div class="empty-state" style="padding:20px">
       <p>Análise 5W1H ainda não gerada.</p>
-      <button class="btn btn-primary mt-2" onclick="generate5W1H()">✨ Gerar com IA</button>
+      <button class="btn btn-primary mt-2" onclick="generate5W1H()"><i data-lucide="sparkles"></i> Gerar com IA</button>
     </div>`;
   }
 
@@ -447,31 +458,33 @@ async function openProblemDetail(id) {
   } else {
     a3el.innerHTML = `<div class="empty-state" style="padding:20px">
       <p>Relatório A3 ainda não gerado.</p>
-      <button class="btn btn-primary mt-2" onclick="generateA3()">✨ Gerar com IA</button>
+      <button class="btn btn-primary mt-2" onclick="generateA3()"><i data-lucide="sparkles"></i> Gerar com IA</button>
     </div>`;
   }
 
   // Suggestions — always start with empty-state button
   document.getElementById("detail-suggestions").innerHTML = `<div class="empty-state" style="padding:20px">
     <p>Sugestões de melhoria ainda não geradas.</p>
-    <button class="btn btn-primary mt-2" onclick="generateSuggestions()">✨ Gerar com IA</button>
+    <button class="btn btn-primary mt-2" onclick="generateSuggestions()"><i data-lucide="sparkles"></i> Gerar com IA</button>
   </div>`;
 
   // Actions
   await loadDetailActions(id);
 
   modal.classList.add("open");
+  renderIcons();
 }
 
 async function loadDetailActions(problemId) {
   const actions = await apiFetch(`/api/actions?problem_id=${problemId}`);
   const el = document.getElementById("detail-actions");
   const toolbarBtns = `<div class="flex gap-2" style="margin-bottom:12px">
-    <button class="btn btn-sm btn-primary" onclick="openAddAction(${problemId})">+ Adicionar Ação</button>
-    <button class="btn btn-sm btn-secondary" id="btn-suggest-actions" onclick="generateAIActions(${problemId})">✨ Sugerir com IA</button>
+    <button class="btn btn-sm btn-primary" onclick="openAddAction(${problemId})"><i data-lucide="plus"></i> Adicionar Ação</button>
+    <button class="btn btn-sm btn-secondary" id="btn-suggest-actions" onclick="generateAIActions(${problemId})"><i data-lucide="sparkles"></i> Sugerir com IA</button>
   </div>`;
   if (actions.length === 0) {
     el.innerHTML = `${toolbarBtns}<div class="empty-state" style="padding:16px"><p>Nenhuma ação registada</p></div>`;
+    renderIcons();
     return;
   }
   el.innerHTML = toolbarBtns + actions.map(a => {
@@ -479,18 +492,19 @@ async function loadDetailActions(problemId) {
     const done = a.status === "completed";
     return `<div class="action-card">
       <div class="action-check ${done ? "done" : ""}" onclick="toggleAction(${a.id}, '${done ? "pending" : "completed"}')">
-        ${done ? "✓" : ""}
+        ${done ? '<i data-lucide="check"></i>' : ""}
       </div>
       <div class="action-info">
         <div class="action-title" style="${done ? "text-decoration:line-through;color:var(--gray-400)" : ""}">${a.title}</div>
         <div class="action-meta">${a.responsible} • ${badge(a.status, STATUS_LABELS)}</div>
       </div>
       <div>
-        <div class="action-deadline ${over ? "overdue" : ""}">📅 ${a.deadline}</div>
+        <div class="action-deadline ${over ? "overdue" : ""}"><i data-lucide="calendar"></i>${a.deadline}</div>
       </div>
-      <button class="btn btn-sm btn-danger btn-icon" onclick="deleteAction(${a.id}, ${problemId})">🗑</button>
+      <button class="btn btn-sm btn-danger btn-icon" onclick="deleteAction(${a.id}, ${problemId})"><i data-lucide="trash-2"></i></button>
     </div>`;
   }).join("");
+  renderIcons();
 }
 
 async function toggleAction(actionId, newStatus) {
@@ -529,7 +543,7 @@ async function generateAIActions(problemId) {
       <button class="btn btn-sm btn-secondary" onclick="generateAIActions(${problemId})" style="margin-bottom:12px">Tentar novamente</button>`;
     toast(err.message, "error");
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = "✨ Sugerir com IA"; }
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="sparkles"></i> Sugerir com IA'; renderIcons(); }
   }
 }
 
@@ -542,8 +556,8 @@ function renderAISuggestedActions(el, actions, problemId) {
   el.innerHTML = `
     <div class="a3-section" style="margin-top:12px">
       <div class="a3-section-title" style="display:flex;justify-content:space-between;align-items:center">
-        <span>✨ Ações Sugeridas pela IA</span>
-        <button class="btn btn-sm btn-secondary" onclick="this.closest('.a3-section').remove()">✕ Fechar</button>
+        <span><i data-lucide="sparkles"></i> Ações Sugeridas pela IA</span>
+        <button class="btn btn-sm btn-secondary" onclick="this.closest('.a3-section').remove()"><i data-lucide="x"></i> Fechar</button>
       </div>
       ${actions.map((a, i) => {
         const deadline = new Date(today);
@@ -553,12 +567,13 @@ function renderAISuggestedActions(el, actions, problemId) {
           <div class="action-info" style="flex:1">
             <div class="action-title">${a.title}</div>
             <div class="action-meta" style="font-size:12px;color:var(--gray-500)">${a.description || ""}</div>
-            <div class="action-meta">${a.responsible} • 📅 ${deadlineStr}</div>
+            <div class="action-meta">${a.responsible} • <i data-lucide="calendar"></i> ${deadlineStr}</div>
           </div>
-          <button class="btn btn-sm btn-primary" id="ai-action-btn-${i}" onclick="addSuggestedAction(${problemId}, ${i}, '${deadlineStr}')">+ Adicionar</button>
+          <button class="btn btn-sm btn-primary" id="ai-action-btn-${i}" onclick="addSuggestedAction(${problemId}, ${i}, '${deadlineStr}')"><i data-lucide="plus"></i> Adicionar</button>
         </div>`;
       }).join("")}
     </div>`;
+  renderIcons();
 }
 
 async function addSuggestedAction(problemId, index, deadline) {
@@ -579,14 +594,16 @@ async function addSuggestedAction(problemId, index, deadline) {
       }),
     });
     toast("Ação adicionada!", "success");
-    btn.textContent = "✓ Adicionada";
+    btn.innerHTML = '<i data-lucide="check"></i> Adicionada';
     btn.classList.remove("btn-primary");
     btn.classList.add("btn-secondary");
+    renderIcons();
     await loadDetailActions(problemId);
   } catch (err) {
     toast(err.message, "error");
     btn.disabled = false;
-    btn.textContent = "+ Adicionar";
+    btn.innerHTML = '<i data-lucide="plus"></i> Adicionar';
+    renderIcons();
   }
 }
 
@@ -649,8 +666,8 @@ function render5W1H(el, a) {
   ];
   el.innerHTML = `
     <div class="flex justify-between items-center mb-3">
-      <span class="ai-badge">✨ Gerado por IA</span>
-      <button class="btn btn-sm btn-secondary" onclick="generate5W1H()">↻ Regenerar</button>
+      <span class="ai-badge"><i data-lucide="sparkles"></i> Gerado por IA</span>
+      <button class="btn btn-sm btn-secondary" onclick="generate5W1H()"><i data-lucide="refresh-cw"></i> Regenerar</button>
     </div>
     <div class="w5h1-grid">${fields.map(([l, v]) => `
       <div class="w5h1-item">
@@ -672,6 +689,7 @@ function render5W1H(el, a) {
         <div class="a3-section-title">Soluções Propostas</div>
         <ul style="margin:0;padding-left:18px">${a.suggested_solutions.map(c => `<li class="text-sm" style="margin-bottom:4px">${c}</li>`).join("")}</ul>
       </div>` : ""}`;
+  renderIcons();
 }
 
 // ---- AI: A3 ----
@@ -704,10 +722,10 @@ function renderA3(el, r) {
 
   el.innerHTML = `
     <div class="flex justify-between items-center mb-3">
-      <span class="ai-badge">✨ Relatório A3 - IA</span>
+      <span class="ai-badge"><i data-lucide="sparkles"></i> Relatório A3 - IA</span>
       <div class="flex gap-2">
-        <button class="btn btn-sm btn-secondary" onclick="generateA3()">↻ Regenerar</button>
-        <button class="btn btn-sm btn-primary" onclick="exportA3PDF()">⬇ Exportar PDF</button>
+        <button class="btn btn-sm btn-secondary" onclick="generateA3()"><i data-lucide="refresh-cw"></i> Regenerar</button>
+        <button class="btn btn-sm btn-primary" onclick="exportA3PDF()"><i data-lucide="download"></i> Exportar PDF</button>
       </div>
     </div>
     <div class="a3-section" style="background:var(--primary-light);border-color:var(--primary)">
@@ -780,6 +798,7 @@ function renderA3(el, r) {
         <div class="a3-text">${r.lessons_learned || "—"}</div>
       </div>
     </div>`;
+  renderIcons();
 }
 
 // ---- EXPORT A3 PDF ----
@@ -1079,7 +1098,7 @@ async function exportA3PDF() {
   } catch (err) {
     toast('Erro ao gerar PDF: ' + err.message, 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '⬇ Exportar PDF'; }
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="download"></i> Exportar PDF'; renderIcons(); }
   }
 }
 
@@ -1107,8 +1126,8 @@ function renderSuggestions(el, s) {
   ];
   el.innerHTML = `
     <div class="flex justify-between items-center mb-3">
-      <span class="ai-badge">✨ Sugestões por IA</span>
-      <button class="btn btn-sm btn-secondary" onclick="generateSuggestions()">↻ Regenerar</button>
+      <span class="ai-badge"><i data-lucide="sparkles"></i> Sugestões por IA</span>
+      <button class="btn btn-sm btn-secondary" onclick="generateSuggestions()"><i data-lucide="refresh-cw"></i> Regenerar</button>
     </div>
     <div class="suggestions-grid">${cols.map(col => `
       <div>
@@ -1127,6 +1146,7 @@ function renderSuggestions(el, s) {
     ${s.kpis_sugeridos ? `<div class="a3-section"><div class="a3-section-title">KPIs Sugeridos</div>
       <div class="flex gap-2 flex-wrap">${s.kpis_sugeridos.map(k => `<span class="badge badge-open">${k}</span>`).join("")}</div>
     </div>` : ""}`;
+  renderIcons();
 }
 
 // ---- ACTIONS VIEW ----
@@ -1143,7 +1163,8 @@ async function loadActions() {
 function renderActionsTable(actions) {
   const el = document.getElementById("actions-list");
   if (actions.length === 0) {
-    el.innerHTML = `<div class="empty-state"><div class="empty-icon">✅</div><p>Nenhuma ação encontrada</p></div>`;
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon"><i data-lucide="check-circle-2"></i></div><p>Nenhuma ação encontrada</p></div>`;
+    renderIcons();
     return;
   }
   const today = new Date();
@@ -1159,17 +1180,18 @@ function renderActionsTable(actions) {
         <td><span style="font-weight:500">${a.title}</span></td>
         <td><a href="#" onclick="openProblemDetail(${a.problem_id});return false" style="color:var(--primary);font-size:13px">#${a.problem_id}</a></td>
         <td>${a.responsible}</td>
-        <td class="${over ? "text-danger" : ""}" style="${over ? "color:var(--danger);font-weight:600" : ""}">${a.deadline}${over ? " ⚠️" : ""}</td>
+        <td class="${over ? "text-danger" : ""}" style="${over ? "color:var(--danger);font-weight:600" : ""}">${a.deadline}${over ? ' <i data-lucide="alert-triangle" style="width:13px;height:13px;vertical-align:-2px;color:var(--danger)"></i>' : ""}</td>
         <td>${badge(a.status, STATUS_LABELS)}</td>
         <td>
           <div class="flex gap-2">
-            ${a.status !== "completed" ? `<button class="btn btn-sm btn-success btn-icon" title="Marcar concluída" onclick="toggleAction(${a.id},'completed');loadActions()">✓</button>` : `<button class="btn btn-sm btn-secondary btn-icon" onclick="toggleAction(${a.id},'pending');loadActions()">↩</button>`}
-            <button class="btn btn-sm btn-danger btn-icon" onclick="deleteActionGlobal(${a.id})">🗑</button>
+            ${a.status !== "completed" ? `<button class="btn btn-sm btn-success btn-icon" title="Marcar concluída" onclick="toggleAction(${a.id},'completed');loadActions()"><i data-lucide="check"></i></button>` : `<button class="btn btn-sm btn-secondary btn-icon" title="Reabrir" onclick="toggleAction(${a.id},'pending');loadActions()"><i data-lucide="undo-2"></i></button>`}
+            <button class="btn btn-sm btn-danger btn-icon" onclick="deleteActionGlobal(${a.id})"><i data-lucide="trash-2"></i></button>
           </div>
         </td>
       </tr>`;
     }).join("")}</tbody>
   </table></div>`;
+  renderIcons();
 }
 
 function exportActionsExcel() {
@@ -1232,10 +1254,11 @@ async function seedDatabase() {
   } catch (err) {
     toast("Erro ao carregar dados: " + err.message, "error");
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = "🏭 Carregar Dados de Exemplo"; }
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="database"></i> Carregar Dados de Exemplo'; renderIcons(); }
   }
 }
 
 // ---- INIT ----
 
+renderIcons();
 navigate("dashboard");

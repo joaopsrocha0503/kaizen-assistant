@@ -94,6 +94,19 @@
         </div>
       </div>
 
+      <div id="alerts-panel"></div>
+
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header">
+          <span class="card-title">📈 Evolução de Kaizens — Últimos 6 Meses</span>
+        </div>
+        <div class="card-body" style="padding-bottom:12px">
+          <div style="position:relative;height:200px">
+            <canvas id="monthly-chart"></canvas>
+          </div>
+        </div>
+      </div>
+
       <div class="grid-2" style="margin-bottom:20px">
         <div class="card">
           <div class="card-header">
@@ -121,6 +134,16 @@
         <div class="card-body" style="padding:0">
           <div id="recent-problems"></div>
         </div>
+      </div>
+
+      <div id="seed-banner" style="margin-top:12px;padding:14px 18px;background:var(--gray-50);border:1px dashed var(--gray-300);border-radius:10px;display:flex;align-items:center;justify-content:space-between;gap:16px">
+        <div>
+          <span style="font-size:13px;font-weight:600;color:var(--gray-600)">Base de dados vazia?</span>
+          <span style="font-size:13px;color:var(--gray-400);margin-left:6px">Carregue dados industriais de exemplo para explorar todas as funcionalidades.</span>
+        </div>
+        <button class="btn btn-sm btn-secondary" onclick="seedDatabase()" id="btn-seed" style="white-space:nowrap;flex-shrink:0">
+          🏭 Carregar Dados de Exemplo
+        </button>
       </div>
     </div>
 
@@ -204,6 +227,7 @@
           <option value="completed">Concluída</option>
           <option value="overdue">Atrasada</option>
         </select>
+        <button class="btn btn-secondary" onclick="exportActionsExcel()">⬇ Exportar Excel</button>
       </div>
       <div class="card">
         <div id="actions-list"></div>
@@ -377,6 +401,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="/static/js/app.js"></script>
 </body>
 </html>

@@ -1,5 +1,10 @@
+import io
 import os
-from flask import Flask, request, jsonify, send_from_directory
+from datetime import datetime
+
+import openpyxl
+from openpyxl.styles import Alignment, Font, PatternFill
+from flask import Flask, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
 
@@ -26,6 +31,14 @@ def index():
 @app.route("/api/kpis", methods=["GET"])
 def kpis():
     return jsonify(db.get_kpis())
+
+
+# --- Stats ---
+
+@app.route("/api/stats/monthly", methods=["GET"])
+def monthly_stats():
+    months = request.args.get("months", 6, type=int)
+    return jsonify(db.get_monthly_problem_counts(months=months))
 
 
 # --- Problems ---
@@ -141,6 +154,72 @@ def suggest_actions(problem_id):
 
 # --- Actions ---
 
+@app.route("/api/actions/upcoming", methods=["GET"])
+def upcoming_actions():
+    days = request.args.get("days", 7, type=int)
+    return jsonify(db.get_upcoming_actions(days=days))
+
+
+@app.route("/api/actions/export", methods=["GET"])
+def export_actions_excel():
+    """Exporta todas as ações para ficheiro .xlsx."""
+    status = request.args.get("status")
+    actions = db.list_actions_for_export(status=status)
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Ações"
+
+    headers = ["Problema", "Ação", "Responsável", "Deadline", "Estado", "Prioridade"]
+    ws.append(headers)
+
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="1A56DB", end_color="1A56DB", fill_type="solid")
+    for cell in ws[1]:
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal="center")
+
+    status_labels = {
+        "pending": "Pendente",
+        "in_progress": "Em Progresso",
+        "completed": "Concluído",
+        "overdue": "Atrasado",
+    }
+    priority_labels = {
+        "low": "Baixa",
+        "medium": "Média",
+        "high": "Alta",
+        "critical": "Crítica",
+    }
+
+    for a in actions:
+        ws.append([
+            a.get("problem_title", "—"),
+            a.get("title", "—"),
+            a.get("responsible", "—"),
+            a.get("deadline", "—"),
+            status_labels.get(a.get("status", ""), a.get("status", "—")),
+            priority_labels.get(a.get("priority", ""), a.get("priority", "—")),
+        ])
+
+    for col in ws.columns:
+        max_len = max(len(str(cell.value or "")) for cell in col)
+        ws.column_dimensions[col[0].column_letter].width = min(max_len + 4, 60)
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    filename = f"acoes_kaizen_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    return send_file(
+        buf,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name=filename,
+    )
+
+
 @app.route("/api/actions", methods=["GET"])
 def list_actions():
     problem_id = request.args.get("problem_id", type=int)
@@ -185,6 +264,18 @@ def delete_action(action_id):
         return jsonify({"error": "Ação não encontrada"}), 404
     db.delete_action(action_id)
     return jsonify({"message": "Ação eliminada com sucesso"})
+
+
+# --- Seed ---
+
+@app.route("/api/seed", methods=["POST"])
+def seed():
+    result = db.seed_database()
+    return jsonify({
+        "message": f"Base de dados populada com {result['problems']} problemas e {result['actions']} ações.",
+        "problems": result["problems"],
+        "actions": result["actions"],
+    })
 
 
 if __name__ == "__main__":

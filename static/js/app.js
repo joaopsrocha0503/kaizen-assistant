@@ -73,6 +73,123 @@ document.querySelectorAll(".nav-item[data-view]").forEach(item => {
 
 // ---- DASHBOARD ----
 
+let _monthlyChart = null;
+const PT_MONTHS = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+
+function renderMonthlyChart(data) {
+  if (_monthlyChart) {
+    _monthlyChart.destroy();
+    _monthlyChart = null;
+  }
+
+  const labels = data.map(d => {
+    const [year, month] = d.month.split("-");
+    return `${PT_MONTHS[parseInt(month, 10) - 1]} '${year.slice(2)}`;
+  });
+  const values = data.map(d => d.count);
+  const maxVal = Math.max(...values, 1);
+
+  const ctx = document.getElementById("monthly-chart").getContext("2d");
+  _monthlyChart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [{
+        label: "Kaizens registados",
+        data: values,
+        borderColor: "#1A56DB",
+        backgroundColor: "rgba(26,86,219,0.07)",
+        borderWidth: 2.5,
+        pointBackgroundColor: "#1A56DB",
+        pointBorderColor: "#fff",
+        pointBorderWidth: 2,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        fill: true,
+        tension: 0.4,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          displayColors: false,
+          callbacks: {
+            label: ctx => ` ${ctx.parsed.y} kaizen${ctx.parsed.y !== 1 ? "s" : ""}`,
+          },
+        },
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: maxVal + 1,
+          ticks: { precision: 0, stepSize: 1, color: "#94a3b8" },
+          grid: { color: "rgba(0,0,0,0.05)" },
+          border: { dash: [4, 4], display: false },
+        },
+        x: {
+          ticks: { color: "#94a3b8" },
+          grid: { display: false },
+          border: { display: false },
+        },
+      },
+    },
+  });
+}
+
+function _daysUntil(deadlineStr) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const dl = new Date(deadlineStr + "T00:00:00");
+  return Math.round((dl - today) / 86400000);
+}
+
+function renderAlertsPanel(actions) {
+  const el = document.getElementById("alerts-panel");
+  if (!actions.length) { el.innerHTML = ""; return; }
+
+  const rows = actions.map(a => {
+    const days = _daysUntil(a.deadline);
+    let urgencyClass, chipClass, chipLabel, dlClass;
+
+    if (days === 0) {
+      urgencyClass = "urgency-today"; chipClass = "chip-today";
+      chipLabel = "Hoje"; dlClass = "dl-critical";
+    } else if (days === 1) {
+      urgencyClass = "urgency-tomorrow"; chipClass = "chip-tomorrow";
+      chipLabel = "Amanhã"; dlClass = "dl-critical";
+    } else if (days <= 3) {
+      urgencyClass = "urgency-soon"; chipClass = "chip-soon";
+      chipLabel = `${days} dias`; dlClass = "dl-warning";
+    } else {
+      urgencyClass = "urgency-week"; chipClass = "chip-week";
+      chipLabel = `${days} dias`; dlClass = "dl-normal";
+    }
+
+    const dl = new Date(a.deadline + "T00:00:00").toLocaleDateString("pt-PT", { day: "2-digit", month: "short" });
+
+    return `<div class="alert-item ${urgencyClass}" onclick="openProblemDetail(${a.problem_id})">
+      <span class="alert-chip ${chipClass}">${chipLabel}</span>
+      <div class="alert-info">
+        <div class="alert-action-title">${a.title}</div>
+        <div class="alert-meta">${a.problem_title} &middot; ${a.responsible}</div>
+      </div>
+      <span class="alert-deadline ${dlClass}">📅 ${dl}</span>
+    </div>`;
+  }).join("");
+
+  el.innerHTML = `<div class="alerts-panel">
+    <div class="alerts-panel-header">
+      <span class="alerts-panel-icon">⚠️</span>
+      <span class="alerts-panel-title">Ações com Prazo nos Próximos 7 Dias</span>
+      <span class="alerts-panel-count">${actions.length}</span>
+    </div>
+    ${rows}
+  </div>`;
+}
+
 async function loadDashboard() {
   const kpis = await apiFetch("/api/kpis");
   document.getElementById("kpi-total").textContent = kpis.total_problems;
@@ -85,6 +202,8 @@ async function loadDashboard() {
   document.getElementById("kpi-overdue").textContent = kpis.overdue_actions;
   document.getElementById("kpi-action-rate").textContent = kpis.action_completion_rate + "%";
   document.getElementById("kpi-action-bar").style.width = kpis.action_completion_rate + "%";
+
+  document.getElementById("seed-banner").style.display = kpis.total_problems === 0 ? "flex" : "none";
 
   // By priority
   const pDiv = document.getElementById("priority-chart");
@@ -121,8 +240,14 @@ async function loadDashboard() {
       </div>`;
     }).join("");
 
-  // Recent problems
-  const recent = await apiFetch("/api/problems?status=open");
+  // Fetch remaining sections in parallel
+  const [monthly, upcoming, recent] = await Promise.all([
+    apiFetch("/api/stats/monthly"),
+    apiFetch("/api/actions/upcoming"),
+    apiFetch("/api/problems?status=open"),
+  ]);
+  renderMonthlyChart(monthly);
+  renderAlertsPanel(upcoming);
   const recentEl = document.getElementById("recent-problems");
   if (recent.length === 0) {
     recentEl.innerHTML = `<div class="empty-state"><div class="empty-icon">✅</div><p>Nenhum problema aberto</p></div>`;
@@ -1047,6 +1172,13 @@ function renderActionsTable(actions) {
   </table></div>`;
 }
 
+function exportActionsExcel() {
+  const statusFilter = document.getElementById("action-filter-status")?.value;
+  let url = "/api/actions/export";
+  if (statusFilter) url += `?status=${statusFilter}`;
+  window.location.href = url;
+}
+
 async function deleteActionGlobal(id) {
   if (!confirm("Apagar esta ação?")) return;
   try {
@@ -1086,6 +1218,23 @@ document.querySelectorAll(".tab-btn").forEach(btn => {
     document.querySelector(`.tab-pane[data-tab-group="${group}"][data-tab="${target}"]`).classList.add("active");
   });
 });
+
+// ---- SEED ----
+
+async function seedDatabase() {
+  const btn = document.getElementById("btn-seed");
+  if (btn) { btn.disabled = true; btn.textContent = "A carregar..."; }
+
+  try {
+    const res = await apiFetch("/api/seed", { method: "POST" });
+    toast(res.message, "success");
+    loadDashboard();
+  } catch (err) {
+    toast("Erro ao carregar dados: " + err.message, "error");
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "🏭 Carregar Dados de Exemplo"; }
+  }
+}
 
 // ---- INIT ----
 

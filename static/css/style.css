@@ -828,6 +828,135 @@ tbody tr:last-child { border-bottom: none; }
 .info-item .info-label { font-size: 11px; color: var(--gray-400); font-weight: 600; text-transform: uppercase; }
 .info-item .info-value { font-size: 14px; color: var(--gray-800); font-weight: 500; }
 
+/* ---- ALERTS PANEL ---- */
+.alerts-panel {
+  border-radius: var(--radius);
+  border: 1px solid #fcd34d;
+  background: #fffbeb;
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+
+.alerts-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 18px;
+  background: #fef3c7;
+  border-bottom: 1px solid #fcd34d;
+}
+
+.alerts-panel-icon {
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.alerts-panel-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #92400e;
+  flex: 1;
+}
+
+.alerts-panel-count {
+  font-size: 11px;
+  font-weight: 700;
+  background: #d97706;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 9999px;
+}
+
+.alert-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 11px 18px;
+  border-bottom: 1px solid #fde68a;
+  border-left: 4px solid transparent;
+  transition: background .12s;
+  cursor: pointer;
+}
+
+.alert-item:last-child { border-bottom: none; }
+.alert-item:hover { background: #fef9e7; }
+
+.alert-item.urgency-today,
+.alert-item.urgency-tomorrow {
+  border-left-color: var(--danger);
+  background: #fff8f8;
+}
+
+.alert-item.urgency-today:hover,
+.alert-item.urgency-tomorrow:hover { background: #fee2e2; }
+
+.alert-item.urgency-soon {
+  border-left-color: var(--warning);
+}
+
+.alert-item.urgency-week {
+  border-left-color: #fcd34d;
+}
+
+.alert-chip {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.alert-chip.chip-today,
+.alert-chip.chip-tomorrow {
+  background: var(--danger-light);
+  color: #991b1b;
+}
+
+.alert-chip.chip-soon {
+  background: var(--warning-light);
+  color: #92400e;
+}
+
+.alert-chip.chip-week {
+  background: var(--gray-100);
+  color: var(--gray-600);
+}
+
+.alert-info { flex: 1; min-width: 0; }
+
+.alert-action-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gray-800);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.alert-meta {
+  font-size: 11px;
+  color: var(--gray-500);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.alert-deadline {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.alert-deadline.dl-critical { color: var(--danger); }
+.alert-deadline.dl-warning  { color: var(--warning); }
+.alert-deadline.dl-normal   { color: var(--gray-500); }
+
 @media (max-width: 900px) {
   .sidebar { transform: translateX(-100%); }
   .sidebar.open { transform: translateX(0); }

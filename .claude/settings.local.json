@@ -3,7 +3,12 @@
     "allow": [
       "PowerShell(New-Item *)",
       "PowerShell(Get-ChildItem -Recurse \"C:\\\\Users\\\\Joao\\\\Documents\\\\kaizen-assistant\" | Where-Object { !$_.PSIsContainer } | Select-Object FullName, Length | Sort-Object FullName)",
-      "PowerShell(Copy-Item *)"
+      "PowerShell(Copy-Item *)",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\Joao\\\\Documents\\\\Projects\\\\kaizen-assistant\" -Recurse -Exclude \"venv\" | Where-Object { $_.FullName -notmatch \"venv\" } | Select-Object FullName)",
+      "PowerShell(& \"C:\\\\Users\\\\Joao\\\\Documents\\\\Projects\\\\kaizen-assistant\\\\venv\\\\Scripts\\\\pip.exe\" install openpyxl==3.1.5)",
+      "PowerShell(& \"C:\\\\Users\\\\Joao\\\\Documents\\\\Projects\\\\kaizen-assistant\\\\venv\\\\Scripts\\\\python.exe\" -m pip install openpyxl==3.1.5 2>&1)",
+      "PowerShell(& \"C:\\\\Users\\\\Joao\\\\Documents\\\\Projects\\\\kaizen-assistant\\\\venv\\\\Scripts\\\\python.exe\" -c \"import app; print\\('OK'\\)\" 2>&1)",
+      "PowerShell(& \"C:\\\\Users\\\\Joao\\\\Documents\\\\Projects\\\\kaizen-assistant\\\\venv\\\\Scripts\\\\python.exe\" -c \"import database; import app; print\\('OK'\\)\" 2>&1)"
     ]
   }
 }

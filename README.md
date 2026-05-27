@@ -154,11 +154,21 @@ O **Kaizen Assistant** é uma aplicação web single-page (SPA) que digitaliza o
 | **Frontend** | HTML + CSS + JavaScript puro | ES6+ |
 | **IA** | Groq API · LLaMA 3.3 70B Versatile | Gratuita |
 | **Gráficos** | Chart.js | 4.4.4 |
+| **Ícones** | Lucide Icons | — |
 | **PDF (client)** | jsPDF + jsPDF-AutoTable | 2.5.1 / 3.8.2 |
 | **Excel (server)** | openpyxl | 3.1.5 |
 | **CORS** | flask-cors | 4.0.1 |
 
 > A Groq API tem tier gratuito generoso e não requer cartão de crédito.
+
+### Arquitetura Frontend
+
+O frontend está organizado em módulos ES com separação clara de responsabilidades e sem dependências circulares:
+
+- **api.js** centraliza todos os `fetch()` com tratamento de erros consistente
+- **ui.js** expõe utilitários partilhados (toasts, modais, renderização de ícones, formatadores)
+- Os módulos de funcionalidade importam apenas de `api` e `ui`
+- **main.js** orquestra a navegação e o tratamento de eventos via delegação (`data-action` / `data-nav`)
 
 ---
 
@@ -177,7 +187,12 @@ kaizen-assistant/
     ├── css/
     │   └── style.css   # Estilos (design system, componentes, responsivo)
     └── js/
-        └── app.js      # Lógica frontend — navegação, fetch, renderização
+        ├── api.js          # Camada de comunicação com a REST API
+        ├── ui.js           # Componentes partilhados (toasts, modais, formatadores, ícones SVG)
+        ├── dashboard.js    # KPIs, gráficos e painel de alertas
+        ├── problems.js     # Gestão de problemas e análise IA
+        ├── actions.js      # Tracker de ações e exportação
+        └── main.js         # Ponto de entrada, navegação e delegação de eventos
 ```
 
 ---

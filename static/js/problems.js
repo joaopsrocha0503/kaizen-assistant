@@ -1,337 +1,44 @@
-const API = "";
+// ============================================================================
+// problems.js — tabela e filtros, modal de detalhe + tabs (5W1H, A3, sugestões,
+// ações), geração por IA, exportação A3 em PDF.
+//
+// Notas:
+//  - `loadDetailActions` é exportada porque o action-form submit (em main.js)
+//    precisa de refrescar o detalhe após criar uma ação.
+//  - `toggleAction` vive aqui porque depende de `currentProblemId` (estado do
+//    detalhe). Na vista global de ações, main.js encadeia com `loadActions()`.
+// ============================================================================
+import {
+  apiGetProblems, apiGetProblem, apiDeleteProblem,
+  apiGetActionsForProblem, apiCreateAction, apiUpdateAction, apiDeleteAction,
+  apiAnalyze5W1H, apiGenerateA3, apiGenerateSuggestions, apiSuggestActions,
+} from "./api.js";
+import {
+  showToast, openModal, badge, formatDate, isOverdue, renderIcons,
+  loading, emptyState, STATUS_LABELS, PRIORITY_LABELS,
+} from "./ui.js";
 
-// ---- UTILITIES ----
-
-async function apiFetch(path, opts = {}) {
-  try {
-    const res = await fetch(API + path, {
-      headers: { "Content-Type": "application/json" },
-      ...opts,
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Erro desconhecido");
-    return data;
-  } catch (e) {
-    throw e;
-  }
-}
-
-function toast(msg, type = "success") {
-  const el = document.createElement("div");
-  el.className = `toast ${type}`;
-  el.textContent = msg;
-  document.getElementById("toast-container").appendChild(el);
-  setTimeout(() => el.remove(), 3500);
-}
-
-function badge(val, map) {
-  const label = map[val] || val;
-  return `<span class="badge badge-${val}">${label}</span>`;
-}
-
-const STATUS_LABELS = { open: "Aberto", in_progress: "Em Progresso", completed: "Concluído", cancelled: "Cancelado", pending: "Pendente", overdue: "Atrasado" };
-const PRIORITY_LABELS = { low: "Baixa", medium: "Média", high: "Alta", critical: "Crítica" };
-
-function formatDate(iso) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("pt-PT");
-}
-
-function isOverdue(deadline, status) {
-  if (status === "completed") return false;
-  return new Date(deadline) < new Date();
-}
-
-function loading(id) {
-  document.getElementById(id).innerHTML = `<div class="loading"><div class="spinner"></div> A carregar...</div>`;
-}
-
-// Renderiza ícones Lucide injetados dinamicamente
-function renderIcons() {
-  if (window.lucide && typeof window.lucide.createIcons === "function") {
-    window.lucide.createIcons();
-  }
-}
-
-// ---- NAV ----
-
-function navigate(view) {
-  document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
-  document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
-  document.getElementById("view-" + view).classList.add("active");
-  document.querySelector(`[data-view="${view}"]`).classList.add("active");
-
-  const titles = {
-    dashboard: "Dashboard",
-    problems: "Problemas Kaizen",
-    "new-problem": "Novo Problema",
-    actions: "Tracker de Ações",
-  };
-  document.getElementById("topbar-title").textContent = titles[view] || view;
-
-  if (view === "dashboard") loadDashboard();
-  if (view === "problems") loadProblems();
-  if (view === "actions") loadActions();
-}
-
-// ---- DELEGATED CLICK HANDLER ----
-// Um único listener no document trata todos os data-nav / data-view / data-action,
-// evitando reanexar handlers a cada render.
-
-document.addEventListener("click", e => {
-  const navEl = e.target.closest("[data-nav]");
-  if (navEl) { navigate(navEl.dataset.nav); return; }
-
-  const viewEl = e.target.closest("[data-view]");
-  if (viewEl) { navigate(viewEl.dataset.view); return; }
-
-  const el = e.target.closest("[data-action]");
-  if (!el) return;
-
-  const action = el.dataset.action;
-  const id = el.dataset.id ? parseInt(el.dataset.id, 10) : null;
-
-  if (el.tagName === "A") e.preventDefault();
-
-  switch (action) {
-    case "seed":               seedDatabase(); break;
-    case "export-excel":       exportActionsExcel(); break;
-    case "open-detail":        openProblemDetail(id); break;
-    case "open-edit":          openEditProblem(id); break;
-    case "delete-problem":     deleteProblem(id); break;
-    case "open-add-action":    openAddAction(id); break;
-    case "gen-5w1h":           generate5W1H(); break;
-    case "gen-a3":             generateA3(); break;
-    case "gen-suggestions":    generateSuggestions(); break;
-    case "gen-ai-actions":     generateAIActions(id); break;
-    case "export-a3-pdf":      exportA3PDF(); break;
-    case "toggle-action":      toggleAction(id, el.dataset.status); break;
-    case "toggle-action-list":
-      toggleAction(id, el.dataset.status);
-      loadActions();
-      break;
-    case "delete-action":
-      deleteAction(id, parseInt(el.dataset.problemId, 10));
-      break;
-    case "delete-action-global": deleteActionGlobal(id); break;
-    case "close-ai-suggestions": el.closest(".a3-section")?.remove(); break;
-    case "add-suggested-action":
-      addSuggestedAction(id, parseInt(el.dataset.index, 10), el.dataset.deadline);
-      break;
-  }
-});
-
-// ---- DASHBOARD ----
-
-let _monthlyChart = null;
-const PT_MONTHS = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
-
-function renderMonthlyChart(data) {
-  if (_monthlyChart) {
-    _monthlyChart.destroy();
-    _monthlyChart = null;
-  }
-
-  const labels = data.map(d => {
-    const [year, month] = d.month.split("-");
-    return `${PT_MONTHS[parseInt(month, 10) - 1]} '${year.slice(2)}`;
-  });
-  const values = data.map(d => d.count);
-  const maxVal = Math.max(...values, 1);
-
-  const ctx = document.getElementById("monthly-chart").getContext("2d");
-  _monthlyChart = new Chart(ctx, {
-    type: "line",
-    data: {
-      labels,
-      datasets: [{
-        label: "Kaizens registados",
-        data: values,
-        borderColor: "#1A56DB",
-        backgroundColor: "rgba(26,86,219,0.07)",
-        borderWidth: 2.5,
-        pointBackgroundColor: "#1A56DB",
-        pointBorderColor: "#fff",
-        pointBorderWidth: 2,
-        pointRadius: 5,
-        pointHoverRadius: 7,
-        fill: true,
-        tension: 0.4,
-      }],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          displayColors: false,
-          callbacks: {
-            label: ctx => ` ${ctx.parsed.y} kaizen${ctx.parsed.y !== 1 ? "s" : ""}`,
-          },
-        },
-      },
-      scales: {
-        y: {
-          beginAtZero: true,
-          max: maxVal + 1,
-          ticks: { precision: 0, stepSize: 1, color: "#94a3b8" },
-          grid: { color: "rgba(0,0,0,0.05)" },
-          border: { dash: [4, 4], display: false },
-        },
-        x: {
-          ticks: { color: "#94a3b8" },
-          grid: { display: false },
-          border: { display: false },
-        },
-      },
-    },
-  });
-}
-
-function _daysUntil(deadlineStr) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const dl = new Date(deadlineStr + "T00:00:00");
-  return Math.round((dl - today) / 86400000);
-}
-
-function renderAlertsPanel(actions) {
-  const el = document.getElementById("alerts-panel");
-  if (!actions.length) { el.innerHTML = ""; return; }
-
-  const rows = actions.map(a => {
-    const days = _daysUntil(a.deadline);
-    let urgencyClass, chipClass, chipLabel, dlClass;
-
-    if (days === 0) {
-      urgencyClass = "urgency-today"; chipClass = "chip-today";
-      chipLabel = "Hoje"; dlClass = "dl-critical";
-    } else if (days === 1) {
-      urgencyClass = "urgency-tomorrow"; chipClass = "chip-tomorrow";
-      chipLabel = "Amanhã"; dlClass = "dl-critical";
-    } else if (days <= 3) {
-      urgencyClass = "urgency-soon"; chipClass = "chip-soon";
-      chipLabel = `${days} dias`; dlClass = "dl-warning";
-    } else {
-      urgencyClass = "urgency-week"; chipClass = "chip-week";
-      chipLabel = `${days} dias`; dlClass = "dl-normal";
-    }
-
-    const dl = new Date(a.deadline + "T00:00:00").toLocaleDateString("pt-PT", { day: "2-digit", month: "short" });
-
-    return `<div class="alert-item ${urgencyClass}" data-action="open-detail" data-id="${a.problem_id}">
-      <span class="alert-chip ${chipClass}">${chipLabel}</span>
-      <div class="alert-info">
-        <div class="alert-action-title">${a.title}</div>
-        <div class="alert-meta">${a.problem_title} &middot; ${a.responsible}</div>
-      </div>
-      <span class="alert-deadline ${dlClass}"><i data-lucide="calendar"></i>${dl}</span>
-    </div>`;
-  }).join("");
-
-  el.innerHTML = `<div class="alerts-panel">
-    <div class="alerts-panel-header">
-      <span class="alerts-panel-icon"><i data-lucide="alert-triangle"></i></span>
-      <span class="alerts-panel-title">Ações com Prazo nos Próximos 7 Dias</span>
-      <span class="alerts-panel-count">${actions.length}</span>
-    </div>
-    ${rows}
-  </div>`;
-  renderIcons();
-}
-
-async function loadDashboard() {
-  const kpis = await apiFetch("/api/kpis");
-  document.getElementById("kpi-total").textContent = kpis.total_problems;
-  document.getElementById("kpi-open").textContent = kpis.open_problems;
-  document.getElementById("kpi-progress").textContent = kpis.in_progress_problems;
-  document.getElementById("kpi-completed").textContent = kpis.completed_problems;
-  document.getElementById("kpi-rate").textContent = kpis.completion_rate + "%";
-  document.getElementById("kpi-rate-bar").style.width = kpis.completion_rate + "%";
-  document.getElementById("kpi-actions").textContent = kpis.total_actions;
-  document.getElementById("kpi-overdue").textContent = kpis.overdue_actions;
-  document.getElementById("kpi-action-rate").textContent = kpis.action_completion_rate + "%";
-  document.getElementById("kpi-action-bar").style.width = kpis.action_completion_rate + "%";
-
-  document.getElementById("seed-banner").style.display = kpis.total_problems === 0 ? "flex" : "none";
-
-  // By priority
-  const pDiv = document.getElementById("priority-chart");
-  const priorities = ["critical", "high", "medium", "low"];
-  const pColors = { critical: "#991b1b", high: "#dc2626", medium: "#d97706", low: "#16a34a" };
-  const pLabels = { critical: "Crítica", high: "Alta", medium: "Média", low: "Baixa" };
-  const maxPVal = Math.max(...priorities.map(p => kpis.by_priority[p] || 0), 1);
-  pDiv.innerHTML = priorities.map(p => {
-    const val = kpis.by_priority[p] || 0;
-    const pct = (val / maxPVal * 100);
-    return `<div class="flex items-center gap-2 mb-2" style="font-size:13px">
-      <span style="width:60px;color:var(--gray-600);font-weight:600">${pLabels[p]}</span>
-      <div style="flex:1;height:10px;background:var(--gray-100);border-radius:9999px;overflow:hidden">
-        <div style="width:${pct}%;height:100%;background:${pColors[p]};border-radius:9999px;transition:width .6s"></div>
-      </div>
-      <span style="width:24px;text-align:right;font-weight:700;color:${pColors[p]}">${val}</span>
-    </div>`;
-  }).join("");
-
-  // By area
-  const aDiv = document.getElementById("area-chart");
-  const areas = Object.entries(kpis.by_area);
-  const maxAVal = Math.max(...areas.map(([, v]) => v), 1);
-  aDiv.innerHTML = areas.length === 0
-    ? `<div class="empty-state"><p>Sem dados ainda</p></div>`
-    : areas.map(([area, val]) => {
-      const pct = (val / maxAVal * 100);
-      return `<div class="flex items-center gap-2 mb-2" style="font-size:13px">
-        <span class="truncate" style="width:120px;color:var(--gray-600);font-weight:600">${area}</span>
-        <div style="flex:1;height:10px;background:var(--gray-100);border-radius:9999px;overflow:hidden">
-          <div style="width:${pct}%;height:100%;background:var(--primary);border-radius:9999px;transition:width .6s"></div>
-        </div>
-        <span style="width:24px;text-align:right;font-weight:700;color:var(--primary)">${val}</span>
-      </div>`;
-    }).join("");
-
-  // Fetch remaining sections in parallel
-  const [monthly, upcoming, recent] = await Promise.all([
-    apiFetch("/api/stats/monthly"),
-    apiFetch("/api/actions/upcoming"),
-    apiFetch("/api/problems?status=open"),
-  ]);
-  renderMonthlyChart(monthly);
-  renderAlertsPanel(upcoming);
-  const recentEl = document.getElementById("recent-problems");
-  if (recent.length === 0) {
-    recentEl.innerHTML = `<div class="empty-state"><div class="empty-icon"><i data-lucide="check-circle-2"></i></div><p>Nenhum problema aberto</p></div>`;
-  } else {
-    recentEl.innerHTML = `<div class="table-wrap"><table>
-      <thead><tr><th>Título</th><th>Área</th><th>Responsável</th><th>Prioridade</th><th>Data</th></tr></thead>
-      <tbody>${recent.slice(0, 8).map(p => `<tr style="cursor:pointer" data-action="open-detail" data-id="${p.id}">
-        <td><span class="truncate" style="max-width:200px;display:block">${p.title}</span></td>
-        <td>${p.area}</td>
-        <td>${p.responsible}</td>
-        <td>${badge(p.priority, PRIORITY_LABELS)}</td>
-        <td>${formatDate(p.created_at)}</td>
-      </tr>`).join("")}</tbody>
-    </table></div>`;
-  }
-  renderIcons();
-}
-
-// ---- PROBLEMS ----
-
+// ---- ESTADO INTERNO ----
 let currentFilters = {};
+let currentProblemId = null;
+let _aiSuggestedActions = [];
+let _currentA3Report = null;
 
-async function loadProblems() {
+// ============================================================================
+// TABELA DE PROBLEMAS
+// ============================================================================
+
+export async function loadProblems() {
   loading("problems-list");
-  const params = new URLSearchParams(currentFilters);
-  const problems = await apiFetch("/api/problems?" + params);
+  const problems = await apiGetProblems(currentFilters);
+  if (!problems) return;
   renderProblemsTable(problems);
 }
 
 function renderProblemsTable(problems) {
   const el = document.getElementById("problems-list");
   if (problems.length === 0) {
-    el.innerHTML = `<div class="empty-state"><div class="empty-icon"><i data-lucide="clipboard-list"></i></div><p>Nenhum problema encontrado</p></div>`;
+    el.innerHTML = emptyState("clipboard-list", "Nenhum problema encontrado");
     renderIcons();
     return;
   }
@@ -360,66 +67,25 @@ function renderProblemsTable(problems) {
   renderIcons();
 }
 
-document.getElementById("filter-status").addEventListener("change", e => {
-  if (e.target.value) currentFilters.status = e.target.value;
-  else delete currentFilters.status;
-  loadProblems();
-});
-document.getElementById("filter-priority").addEventListener("change", e => {
-  if (e.target.value) currentFilters.priority = e.target.value;
-  else delete currentFilters.priority;
-  loadProblems();
-});
-document.getElementById("filter-area").addEventListener("input", e => {
-  if (e.target.value.trim()) currentFilters.area = e.target.value.trim();
-  else delete currentFilters.area;
-  loadProblems();
-});
+// ============================================================================
+// ELIMINAR PROBLEMA
+// ============================================================================
 
-// ---- NEW PROBLEM FORM ----
-
-document.getElementById("problem-form").addEventListener("submit", async e => {
-  e.preventDefault();
-  const btn = e.target.querySelector('[type=submit]');
-  btn.disabled = true;
-  btn.textContent = "A guardar...";
-  try {
-    const data = {
-      title: document.getElementById("p-title").value,
-      description: document.getElementById("p-description").value,
-      area: document.getElementById("p-area").value,
-      responsible: document.getElementById("p-responsible").value,
-      priority: document.getElementById("p-priority").value,
-    };
-    await apiFetch("/api/problems", { method: "POST", body: JSON.stringify(data) });
-    toast("Problema registado com sucesso!", "success");
-    e.target.reset();
-    navigate("problems");
-  } catch (err) {
-    toast(err.message, "error");
-  } finally {
-    btn.disabled = false;
-    btn.textContent = "Registar Problema";
-  }
-});
-
-// ---- DELETE PROBLEM ----
-
-async function deleteProblem(id) {
+export async function deleteProblem(id) {
   if (!confirm("Tem a certeza que deseja apagar este problema? Esta ação é irreversível.")) return;
-  try {
-    await apiFetch(`/api/problems/${id}`, { method: "DELETE" });
-    toast("Problema eliminado", "success");
-    loadProblems();
-  } catch (err) {
-    toast(err.message, "error");
-  }
+  const res = await apiDeleteProblem(id);
+  if (!res) return;
+  showToast("Problema eliminado", "success");
+  loadProblems();
 }
 
-// ---- EDIT PROBLEM MODAL ----
+// ============================================================================
+// MODAL DE EDIÇÃO
+// ============================================================================
 
-async function openEditProblem(id) {
-  const p = await apiFetch(`/api/problems/${id}`);
+export async function openEditProblem(id) {
+  const p = await apiGetProblem(id);
+  if (!p) return;
   document.getElementById("edit-id").value = p.id;
   document.getElementById("edit-title").value = p.title;
   document.getElementById("edit-description").value = p.description;
@@ -427,46 +93,21 @@ async function openEditProblem(id) {
   document.getElementById("edit-responsible").value = p.responsible;
   document.getElementById("edit-priority").value = p.priority;
   document.getElementById("edit-status").value = p.status;
-  document.getElementById("modal-edit").classList.add("open");
+  openModal("modal-edit");
 }
 
-document.getElementById("edit-form").addEventListener("submit", async e => {
-  e.preventDefault();
-  const id = document.getElementById("edit-id").value;
-  const btn = e.target.querySelector('[type=submit]');
-  btn.disabled = true;
-  try {
-    await apiFetch(`/api/problems/${id}`, {
-      method: "PUT",
-      body: JSON.stringify({
-        title: document.getElementById("edit-title").value,
-        description: document.getElementById("edit-description").value,
-        area: document.getElementById("edit-area").value,
-        responsible: document.getElementById("edit-responsible").value,
-        priority: document.getElementById("edit-priority").value,
-        status: document.getElementById("edit-status").value,
-      }),
-    });
-    toast("Problema atualizado", "success");
-    closeModal("modal-edit");
-    loadProblems();
-  } catch (err) {
-    toast(err.message, "error");
-  } finally {
-    btn.disabled = false;
-  }
-});
+// ============================================================================
+// MODAL DE DETALHE
+// ============================================================================
 
-// ---- PROBLEM DETAIL ----
-
-let currentProblemId = null;
-
-async function openProblemDetail(id) {
+export async function openProblemDetail(id) {
   currentProblemId = id;
-  const p = await apiFetch(`/api/problems/${id}`);
-  const modal = document.getElementById("modal-detail");
+  const p = await apiGetProblem(id);
+  if (!p) return;
+
   document.getElementById("detail-title").textContent = p.title;
-  document.getElementById("detail-badges").innerHTML = `${badge(p.status, STATUS_LABELS)} ${badge(p.priority, PRIORITY_LABELS)}`;
+  document.getElementById("detail-badges").innerHTML =
+    `${badge(p.status, STATUS_LABELS)} ${badge(p.priority, PRIORITY_LABELS)}`;
 
   document.getElementById("detail-info").innerHTML = `
     <div class="info-row">
@@ -483,7 +124,9 @@ async function openProblemDetail(id) {
     try {
       const a = JSON.parse(p.analysis_5w1h);
       render5W1H(w5el, a);
-    } catch { w5el.innerHTML = `<p class="text-sm text-gray">Análise salva em formato inválido.</p>`; }
+    } catch {
+      w5el.innerHTML = `<p class="text-sm text-gray">Análise salva em formato inválido.</p>`;
+    }
   } else {
     w5el.innerHTML = `<div class="empty-state" style="padding:20px">
       <p>Análise 5W1H ainda não gerada.</p>
@@ -497,7 +140,9 @@ async function openProblemDetail(id) {
     try {
       const r = JSON.parse(p.a3_report);
       renderA3(a3el, r);
-    } catch { a3el.innerHTML = `<p class="text-sm text-gray">Relatório A3 guardado em formato inválido.</p>`; }
+    } catch {
+      a3el.innerHTML = `<p class="text-sm text-gray">Relatório A3 guardado em formato inválido.</p>`;
+    }
   } else {
     a3el.innerHTML = `<div class="empty-state" style="padding:20px">
       <p>Relatório A3 ainda não gerado.</p>
@@ -505,21 +150,26 @@ async function openProblemDetail(id) {
     </div>`;
   }
 
-  // Suggestions — always start with empty-state button
+  // Sugestões — começam sempre com empty-state
   document.getElementById("detail-suggestions").innerHTML = `<div class="empty-state" style="padding:20px">
     <p>Sugestões de melhoria ainda não geradas.</p>
     <button class="btn btn-primary mt-2" data-action="gen-suggestions"><i data-lucide="sparkles"></i> Gerar com IA</button>
   </div>`;
 
-  // Actions
+  // Ações
   await loadDetailActions(id);
 
-  modal.classList.add("open");
+  openModal("modal-detail");
   renderIcons();
 }
 
-async function loadDetailActions(problemId) {
-  const actions = await apiFetch(`/api/actions?problem_id=${problemId}`);
+// ============================================================================
+// AÇÕES DENTRO DO DETALHE
+// ============================================================================
+
+export async function loadDetailActions(problemId) {
+  const actions = await apiGetActionsForProblem(problemId);
+  if (!actions) return;
   const el = document.getElementById("detail-actions");
   const toolbarBtns = `<div class="flex gap-2" style="margin-bottom:12px">
     <button class="btn btn-sm btn-primary" data-action="open-add-action" data-id="${problemId}"><i data-lucide="plus"></i> Adicionar Ação</button>
@@ -550,25 +200,28 @@ async function loadDetailActions(problemId) {
   renderIcons();
 }
 
-async function toggleAction(actionId, newStatus) {
-  try {
-    await apiFetch(`/api/actions/${actionId}`, { method: "PUT", body: JSON.stringify({ status: newStatus }) });
-    if (currentProblemId) loadDetailActions(currentProblemId);
-  } catch (err) { toast(err.message, "error"); }
+export async function toggleAction(actionId, newStatus) {
+  const res = await apiUpdateAction(actionId, { status: newStatus });
+  if (!res) return;
+  if (currentProblemId) loadDetailActions(currentProblemId);
 }
 
-async function deleteAction(actionId, problemId) {
+export async function deleteAction(actionId, problemId) {
   if (!confirm("Apagar esta ação?")) return;
-  try {
-    await apiFetch(`/api/actions/${actionId}`, { method: "DELETE" });
-    toast("Ação eliminada", "success");
-    loadDetailActions(problemId);
-  } catch (err) { toast(err.message, "error"); }
+  const res = await apiDeleteAction(actionId);
+  if (!res) return;
+  showToast("Ação eliminada", "success");
+  loadDetailActions(problemId);
 }
 
-async function generateAIActions(problemId) {
+// ============================================================================
+// SUGESTÕES DE AÇÕES POR IA
+// ============================================================================
+
+export async function generateAIActions(problemId) {
   const btn = document.getElementById("btn-suggest-actions");
   if (btn) { btn.disabled = true; btn.textContent = "A gerar..."; }
+
   const suggestionsEl = document.getElementById("detail-ai-action-suggestions");
   const container = suggestionsEl || (() => {
     const div = document.createElement("div");
@@ -577,20 +230,20 @@ async function generateAIActions(problemId) {
     return div;
   })();
   container.innerHTML = `<div class="loading" style="margin:12px 0"><div class="spinner"></div> A gerar sugestões de ações com IA...</div>`;
-  try {
-    const result = await apiFetch(`/api/problems/${problemId}/suggest_actions`, { method: "POST" });
-    renderAISuggestedActions(container, result.actions || [], problemId);
-    toast("Sugestões de ações geradas!", "success");
-  } catch (err) {
-    container.innerHTML = `<div class="loading" style="color:var(--danger);margin:12px 0">Erro: ${err.message}</div>
-      <button class="btn btn-sm btn-secondary" data-action="gen-ai-actions" data-id="${problemId}" style="margin-bottom:12px">Tentar novamente</button>`;
-    toast(err.message, "error");
-  } finally {
-    if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="sparkles"></i> Sugerir com IA'; renderIcons(); }
-  }
-}
 
-let _aiSuggestedActions = [];
+  const result = await apiSuggestActions(problemId);
+
+  if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="sparkles"></i> Sugerir com IA'; renderIcons(); }
+
+  if (!result) {
+    container.innerHTML = `<div class="loading" style="color:var(--danger);margin:12px 0">Não foi possível gerar sugestões.</div>
+      <button class="btn btn-sm btn-secondary" data-action="gen-ai-actions" data-id="${problemId}" style="margin-bottom:12px">Tentar novamente</button>`;
+    return;
+  }
+
+  renderAISuggestedActions(container, result.actions || [], problemId);
+  showToast("Sugestões de ações geradas!", "success");
+}
 
 function renderAISuggestedActions(el, actions, problemId) {
   if (!actions.length) { el.innerHTML = ""; return; }
@@ -619,83 +272,52 @@ function renderAISuggestedActions(el, actions, problemId) {
   renderIcons();
 }
 
-async function addSuggestedAction(problemId, index, deadline) {
+export async function addSuggestedAction(problemId, index, deadline) {
   const btn = document.getElementById(`ai-action-btn-${index}`);
   const action = _aiSuggestedActions[index];
   if (!action || !btn) return;
   btn.disabled = true;
   btn.textContent = "A adicionar...";
-  try {
-    await apiFetch("/api/actions", {
-      method: "POST",
-      body: JSON.stringify({
-        problem_id: problemId,
-        title: action.title,
-        description: action.description || "",
-        responsible: action.responsible,
-        deadline,
-      }),
-    });
-    toast("Ação adicionada!", "success");
-    btn.innerHTML = '<i data-lucide="check"></i> Adicionada';
-    btn.classList.remove("btn-primary");
-    btn.classList.add("btn-secondary");
-    renderIcons();
-    await loadDetailActions(problemId);
-  } catch (err) {
-    toast(err.message, "error");
+
+  const res = await apiCreateAction({
+    problem_id: problemId,
+    title: action.title,
+    description: action.description || "",
+    responsible: action.responsible,
+    deadline,
+  });
+
+  if (!res) {
     btn.disabled = false;
     btn.innerHTML = '<i data-lucide="plus"></i> Adicionar';
     renderIcons();
+    return;
   }
+
+  showToast("Ação adicionada!", "success");
+  btn.innerHTML = '<i data-lucide="check"></i> Adicionada';
+  btn.classList.remove("btn-primary");
+  btn.classList.add("btn-secondary");
+  renderIcons();
+  await loadDetailActions(problemId);
 }
 
-function openAddAction(problemId) {
-  document.getElementById("action-problem-id").value = problemId;
-  document.getElementById("modal-action").classList.add("open");
-}
+// ============================================================================
+// IA: 5W1H
+// ============================================================================
 
-document.getElementById("action-form").addEventListener("submit", async e => {
-  e.preventDefault();
-  const btn = e.target.querySelector('[type=submit]');
-  btn.disabled = true;
-  try {
-    const problemId = parseInt(document.getElementById("action-problem-id").value);
-    await apiFetch("/api/actions", {
-      method: "POST",
-      body: JSON.stringify({
-        problem_id: problemId,
-        title: document.getElementById("action-title").value,
-        description: document.getElementById("action-desc").value,
-        responsible: document.getElementById("action-responsible").value,
-        deadline: document.getElementById("action-deadline").value,
-      }),
-    });
-    toast("Ação adicionada!", "success");
-    e.target.reset();
-    closeModal("modal-action");
-    loadDetailActions(problemId);
-  } catch (err) {
-    toast(err.message, "error");
-  } finally {
-    btn.disabled = false;
-  }
-});
-
-// ---- AI: 5W1H ----
-
-async function generate5W1H() {
+export async function generate5W1H() {
+  if (!currentProblemId) return;
   const el = document.getElementById("detail-5w1h");
   el.innerHTML = `<div class="loading"><div class="spinner"></div> A gerar análise 5W1H com IA...</div>`;
-  try {
-    const analysis = await apiFetch(`/api/problems/${currentProblemId}/analyze`, { method: "POST" });
-    render5W1H(el, analysis);
-    toast("Análise 5W1H gerada!", "success");
-  } catch (err) {
-    el.innerHTML = `<div class="loading" style="color:var(--danger)">Erro: ${err.message}</div>
+  const analysis = await apiAnalyze5W1H(currentProblemId);
+  if (!analysis) {
+    el.innerHTML = `<div class="loading" style="color:var(--danger)">Não foi possível gerar a análise.</div>
       <button class="btn btn-primary" data-action="gen-5w1h" style="margin:12px auto;display:block">Tentar novamente</button>`;
-    toast(err.message, "error");
+    return;
   }
+  render5W1H(el, analysis);
+  showToast("Análise 5W1H gerada!", "success");
 }
 
 function render5W1H(el, a) {
@@ -735,22 +357,22 @@ function render5W1H(el, a) {
   renderIcons();
 }
 
-// ---- AI: A3 ----
+// ============================================================================
+// IA: A3
+// ============================================================================
 
-let _currentA3Report = null;
-
-async function generateA3() {
+export async function generateA3() {
+  if (!currentProblemId) return;
   const el = document.getElementById("detail-a3");
   el.innerHTML = `<div class="loading"><div class="spinner"></div> A gerar relatório A3 com IA...</div>`;
-  try {
-    const report = await apiFetch(`/api/problems/${currentProblemId}/a3`, { method: "POST" });
-    renderA3(el, report);
-    toast("Relatório A3 gerado!", "success");
-  } catch (err) {
-    el.innerHTML = `<div class="loading" style="color:var(--danger)">Erro: ${err.message}</div>
+  const report = await apiGenerateA3(currentProblemId);
+  if (!report) {
+    el.innerHTML = `<div class="loading" style="color:var(--danger)">Não foi possível gerar o relatório A3.</div>
       <button class="btn btn-primary" data-action="gen-a3" style="margin:12px auto;display:block">Tentar novamente</button>`;
-    toast(err.message, "error");
+    return;
   }
+  renderA3(el, report);
+  showToast("Relatório A3 gerado!", "success");
 }
 
 function renderA3(el, r) {
@@ -844,9 +466,11 @@ function renderA3(el, r) {
   renderIcons();
 }
 
-// ---- EXPORT A3 PDF ----
+// ============================================================================
+// EXPORTAR A3 PARA PDF (jsPDF — copia integral do app.js original)
+// ============================================================================
 
-async function exportA3PDF() {
+export async function exportA3PDF() {
   if (!_currentA3Report) return;
 
   const btn = document.querySelector('[data-action="export-a3-pdf"]');
@@ -869,9 +493,9 @@ async function exportA3PDF() {
 
     // ── Layout ───────────────────────────────────────────────────────────
     const PW = 210, PH = 297, ML = 11, MR = 11, MB = 12;
-    const CW = PW - ML - MR;   // 188 mm usable width
-    const GAP = 2.5;            // gap between columns
-    const PAD = 3;              // inner padding inside boxes
+    const CW = PW - ML - MR;
+    const GAP = 2.5;
+    const PAD = 3;
     let y = 11;
 
     // ── Palette ───────────────────────────────────────────────────────────
@@ -882,20 +506,13 @@ async function exportA3PDF() {
       border:  [226, 232, 240], bg:     [248, 250, 252], white:  [255, 255, 255],
     };
 
-    // Line-height in mm for each font size (pt).
-    // Values are deliberately ~30% above jsPDF's internal spacing to guarantee
-    // that box heights never undercut the actual rendered text height.
     const LH = { 7:3.8, 7.5:4.1, 8:4.5, 8.5:4.8, 9:5.2, 9.5:5.5, 10:5.8, 14:7.5 };
     const lh = fs => LH[fs] ?? fs * 0.42;
-
-    // ── Core helpers ─────────────────────────────────────────────────────
 
     function guard(need) {
       if (y + need > PH - MB) { doc.addPage(); y = 11; }
     }
 
-    // FIX: always set font+size BEFORE splitTextToSize so character-width
-    // calculations match the font that will actually be used for rendering.
     function measure(text, maxW, fs = 9, style = 'normal') {
       doc.setFont('helvetica', style);
       doc.setFontSize(fs);
@@ -908,27 +525,24 @@ async function exportA3PDF() {
     function stroke(x, ry, w, rh, color = K.border) {
       doc.setDrawColor(...color); doc.setLineWidth(0.25); doc.rect(x, ry, w, rh, 'S');
     }
-    // Coloured label bar — draws at absolute coords, does NOT advance y
     function barAt(label, color, bx, by, bw) {
       fill(bx, by, bw, 6, color);
       doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...K.white);
       doc.text(label, bx + PAD, by + 4.2);
       doc.setTextColor(0, 0, 0);
     }
-    // Full-width label bar — advances y by 7
     function bar(label, color) {
       guard(12);
       barAt(label, color, ML, y, CW);
       y += 7;
     }
 
-    // ── 1. Page header ────────────────────────────────────────────────────
+    // ── 1. Cabeçalho ─────────────────────────────────────────────────────
     guard(28);
     fill(ML, y, CW, 24, K.primary);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(...K.white);
     doc.text('RELATÓRIO A3 — KAIZEN', ML + PAD + 1, y + 8);
     doc.setFontSize(10);
-    // measure() sets font to 10pt bold so splitTextToSize is accurate
     doc.text(measure(h.titulo || problemTitle, CW - PAD * 2, 10, 'bold')[0] || '', ML + PAD + 1, y + 15);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5);
     doc.text(
@@ -938,29 +552,28 @@ async function exportA3PDF() {
     doc.setTextColor(0, 0, 0);
     y += 27;
 
-    // ── 2. Three columns: Contexto / Estado Atual / Estado Futuro ─────────
-    const cW = (CW - GAP * 2) / 3;   // ≈ 61 mm each
-    const textW3 = cW - PAD * 2;      // ≈ 55 mm — max text width inside each column
+    // ── 2. Três colunas: Contexto / Estado Atual / Estado Futuro ─────────
+    const cW = (CW - GAP * 2) / 3;
+    const textW3 = cW - PAD * 2;
     const colDefs = [
       { label: '1. Contexto / Justificativa', color: K.primary, text: r.background,    x: ML },
       { label: '2. Estado Atual',             color: K.danger,  text: r.current_state, x: ML + cW + GAP },
       { label: '3. Estado Futuro (Meta)',      color: K.success, text: r.target_state,  x: ML + (cW + GAP) * 2 },
     ];
-    // measure() at 8.5pt — must match rendering font so wrapping is accurate
     const colLines = colDefs.map(c => measure(c.text, textW3, 8.5));
     const maxCL   = Math.max(...colLines.map(l => l.length));
     const cBodyH  = maxCL * lh(8.5) + PAD * 2;
-    const cBoxH   = 6 + 1 + cBodyH;   // bar(6) + gap(1) + body
+    const cBoxH   = 6 + 1 + cBodyH;
 
     guard(cBoxH + 5);
     const col3Y = y;
     colDefs.forEach(c => { stroke(c.x, col3Y, cW, cBoxH); barAt(c.label, c.color, c.x, col3Y, cW); });
-    const col3TextY = col3Y + 6 + 1 + PAD + 1; // baseline: bar + gap + pad + 1mm font-ascent offset
+    const col3TextY = col3Y + 6 + 1 + PAD + 1;
     doc.setTextColor(...K.text);
     colDefs.forEach((c, i) => doc.text(colLines[i], c.x + PAD, col3TextY));
     y = col3Y + cBoxH + 5;
 
-    // ── 3. Ishikawa fishbone ─────────────────────────────────────────────
+    // ── 3. Ishikawa ──────────────────────────────────────────────────────
     const fbCats = [
       ['Máquina',       fb.maquina],     ['Método',        fb.metodo],
       ['Material',      fb.material],    ['Mão de Obra',   fb.mao_de_obra],
@@ -968,16 +581,14 @@ async function exportA3PDF() {
     ];
     const fbCW  = (CW - GAP * 2) / 3;
     const fbXs  = [ML, ML + fbCW + GAP, ML + (fbCW + GAP) * 2];
-    const fbTW  = fbCW - PAD * 2;        // text width inside fishbone cell
+    const fbTW  = fbCW - PAD * 2;
 
-    // Row height: sum of all item line counts × lh, plus header + padding
     function fbRowH(slice) {
       const maxItemH = Math.max(...slice.map(([, items]) => {
         if (!items?.length) return lh(8);
-        // measure each item at 8pt to get accurate line count
         return items.reduce((sum, item) => sum + measure(item, fbTW, 8).length * lh(8), 0);
       }));
-      return maxItemH + 13; // 6 bar + 1 gap + PAD + 3 bottom pad
+      return maxItemH + 13;
     }
     function drawFbRow(slice, rowH) {
       guard(rowH + 2);
@@ -988,7 +599,6 @@ async function exportA3PDF() {
         doc.text(cat.toUpperCase(), fbXs[i] + PAD, ry + 4.5);
         let itemY = ry + 10;
         (items || []).forEach(item => {
-          // measure() sets 8pt normal — wraps correctly within the cell
           const lines = measure(item, fbTW, 8);
           doc.setTextColor(...K.text);
           doc.text(lines, fbXs[i] + PAD, itemY);
@@ -1008,9 +618,9 @@ async function exportA3PDF() {
     drawFbRow(fbCats.slice(3, 6), fbRowH(fbCats.slice(3, 6)));
     y += 3;
 
-    // ── 4. Five Whys ──────────────────────────────────────────────────────
+    // ── 4. Cinco Porquês ─────────────────────────────────────────────────
     bar('5. Análise dos 5 Porquês', K.warning);
-    const wyW = CW - 10 - PAD; // text width: subtract badge(6.5) + gap(3.5)
+    const wyW = CW - 10 - PAD;
 
     fiveWhys.forEach((w, i) => {
       const qL = measure(w.why    || '', wyW, 9, 'bold');
@@ -1020,10 +630,8 @@ async function exportA3PDF() {
       fill(ML, y, 6.5, 6.5, K.warning);
       doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(...K.white);
       doc.text(String(i + 1), ML + (i < 9 ? 2.3 : 1.3), y + 4.8);
-      // qL was measured at 9pt bold — font is already set, just set color
       doc.setTextColor(...K.text);
       doc.text(qL, ML + 10, y + 4.8);
-      // aL was measured at 8.5pt normal — measure() call above set it; re-set for clarity
       doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...K.muted);
       doc.text(aL, ML + 10, y + 4.8 + qL.length * lh(9) + 1);
       doc.setTextColor(0, 0, 0);
@@ -1038,13 +646,12 @@ async function exportA3PDF() {
       stroke(ML, y, CW, rcH, K.danger);
       doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...K.danger);
       doc.text('CAUSA RAIZ PRINCIPAL', ML + PAD, y + 4.5);
-      // rcL measured at 9.5pt bold — font already set by measure()
       doc.setTextColor(...K.text);
       doc.text(rcL, ML + PAD, y + 11);
       y += rcH + 4;
     }
 
-    // ── 5. Countermeasures ────────────────────────────────────────────────
+    // ── 5. Contramedidas ─────────────────────────────────────────────────
     bar('6. Contramedidas / Plano de Ação', K.cyan);
 
     if (doc.autoTable && countermeasures.length) {
@@ -1069,9 +676,9 @@ async function exportA3PDF() {
       y += 3;
     }
 
-    // ── 6. Implementation plan ────────────────────────────────────────────
+    // ── 6. Plano de implementação ────────────────────────────────────────
     bar('7. Plano de Implementação', K.slate);
-    const planTW  = CW - 10 - PAD;  // text width (subtract badge + gap)
+    const planTW  = CW - 10 - PAD;
 
     plan.forEach((step, i) => {
       const titleL  = measure(step.etapa || `Etapa ${i + 1}`, planTW, 9, 'bold');
@@ -1083,7 +690,6 @@ async function exportA3PDF() {
       fill(ML, y, 6, 5.5, K.slate);
       doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(...K.white);
       doc.text(String(i + 1), ML + 1.3, y + 4);
-      // titleL measured at 9pt bold — font already set
       doc.setTextColor(...K.text);
       doc.text(titleL, ML + 9, y + 4);
       y += titleL.length * lh(9) + 1;
@@ -1094,19 +700,17 @@ async function exportA3PDF() {
         y += lh(7.5) + 2;
       }
 
-      // actLines measured at 8pt normal — font already set from last measure()
       doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...K.text);
       actLines.forEach(line => { guard(lh(8) + 1); doc.text(line, ML + 9, y); y += lh(8); });
       y += 4;
     });
 
-    // ── 7. Follow-up + Lessons (two columns) ─────────────────────────────
-    const hW   = (CW - GAP) / 2;   // ≈ 92.75 mm each
-    const hTW  = hW - PAD * 2;     // ≈ 86.75 mm text width — critical for no overflow
+    // ── 7. Acompanhamento + Lições (duas colunas) ────────────────────────
+    const hW   = (CW - GAP) / 2;
+    const hTW  = hW - PAD * 2;
     const h8x  = ML;
     const h9x  = ML + hW + GAP;
 
-    // measure() at 9pt ensures splitTextToSize uses the same font as rendering
     const followLines = [
       ...(follow.indicadores?.length ? measure(`Indicadores: ${follow.indicadores.join(', ')}`, hTW, 9) : []),
       ...(follow.frequencia_revisao   ? measure(`Frequência: ${follow.frequencia_revisao}`,             hTW, 9) : []),
@@ -1126,7 +730,7 @@ async function exportA3PDF() {
     doc.text(lessonLines,                              h9x + PAD, duoTY);
     y = duoY + dH + 4;
 
-    // ── Footer on every page ──────────────────────────────────────────────
+    // ── Rodapé em todas as páginas ───────────────────────────────────────
     const pages = doc.internal.getNumberOfPages();
     for (let p = 1; p <= pages; p++) {
       doc.setPage(p);
@@ -1139,26 +743,28 @@ async function exportA3PDF() {
     doc.save(`A3_${safeName || 'relatorio'}.pdf`);
 
   } catch (err) {
-    toast('Erro ao gerar PDF: ' + err.message, 'error');
+    showToast('Erro ao gerar PDF: ' + err.message, 'error');
   } finally {
     if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="download"></i> Exportar PDF'; renderIcons(); }
   }
 }
 
-// ---- AI: SUGGESTIONS ----
+// ============================================================================
+// IA: SUGESTÕES DE MELHORIA
+// ============================================================================
 
-async function generateSuggestions() {
+export async function generateSuggestions() {
   if (!currentProblemId) return;
   const el = document.getElementById("detail-suggestions");
   el.innerHTML = `<div class="loading"><div class="spinner"></div> A gerar sugestões de melhoria...</div>`;
-  try {
-    const s = await apiFetch(`/api/problems/${currentProblemId}/suggestions`, { method: "POST" });
-    renderSuggestions(el, s);
-    toast("Sugestões geradas!", "success");
-  } catch (err) {
-    el.innerHTML = `<div class="loading" style="color:var(--danger)">Erro: ${err.message}</div>
+  const s = await apiGenerateSuggestions(currentProblemId);
+  if (!s) {
+    el.innerHTML = `<div class="loading" style="color:var(--danger)">Não foi possível gerar as sugestões.</div>
       <button class="btn btn-primary" data-action="gen-suggestions" style="margin:12px auto;display:block">Tentar novamente</button>`;
+    return;
   }
+  renderSuggestions(el, s);
+  showToast("Sugestões geradas!", "success");
 }
 
 function renderSuggestions(el, s) {
@@ -1192,116 +798,22 @@ function renderSuggestions(el, s) {
   renderIcons();
 }
 
-// ---- ACTIONS VIEW ----
+// ============================================================================
+// INIT — listeners dos filtros da tabela de problemas
+// ============================================================================
 
-async function loadActions() {
-  loading("actions-list");
-  const statusFilter = document.getElementById("action-filter-status")?.value;
-  let url = "/api/actions";
-  if (statusFilter) url += `?status=${statusFilter}`;
-  const actions = await apiFetch(url);
-  renderActionsTable(actions);
-}
-
-function renderActionsTable(actions) {
-  const el = document.getElementById("actions-list");
-  if (actions.length === 0) {
-    el.innerHTML = `<div class="empty-state"><div class="empty-icon"><i data-lucide="check-circle-2"></i></div><p>Nenhuma ação encontrada</p></div>`;
-    renderIcons();
-    return;
-  }
-  const today = new Date();
-  el.innerHTML = `<div class="table-wrap"><table>
-    <thead><tr>
-      <th>#</th><th>Título</th><th>Problema</th><th>Responsável</th>
-      <th>Prazo</th><th>Estado</th><th>Ações</th>
-    </tr></thead>
-    <tbody>${actions.map(a => {
-      const over = isOverdue(a.deadline, a.status);
-      return `<tr>
-        <td style="color:var(--gray-400);font-size:12px">#${a.id}</td>
-        <td><span style="font-weight:500">${a.title}</span></td>
-        <td><a href="#" data-action="open-detail" data-id="${a.problem_id}" style="color:var(--primary);font-size:13px">#${a.problem_id}</a></td>
-        <td>${a.responsible}</td>
-        <td class="${over ? "text-danger" : ""}" style="${over ? "color:var(--danger);font-weight:600" : ""}">${a.deadline}${over ? ' <i data-lucide="alert-triangle" style="width:13px;height:13px;vertical-align:-2px;color:var(--danger)"></i>' : ""}</td>
-        <td>${badge(a.status, STATUS_LABELS)}</td>
-        <td>
-          <div class="flex gap-2">
-            ${a.status !== "completed" ? `<button class="btn btn-sm btn-success btn-icon" title="Marcar concluída" data-action="toggle-action-list" data-id="${a.id}" data-status="completed"><i data-lucide="check"></i></button>` : `<button class="btn btn-sm btn-secondary btn-icon" title="Reabrir" data-action="toggle-action-list" data-id="${a.id}" data-status="pending"><i data-lucide="undo-2"></i></button>`}
-            <button class="btn btn-sm btn-danger btn-icon" data-action="delete-action-global" data-id="${a.id}"><i data-lucide="trash-2"></i></button>
-          </div>
-        </td>
-      </tr>`;
-    }).join("")}</tbody>
-  </table></div>`;
-  renderIcons();
-}
-
-function exportActionsExcel() {
-  const statusFilter = document.getElementById("action-filter-status")?.value;
-  let url = "/api/actions/export";
-  if (statusFilter) url += `?status=${statusFilter}`;
-  window.location.href = url;
-}
-
-async function deleteActionGlobal(id) {
-  if (!confirm("Apagar esta ação?")) return;
-  try {
-    await apiFetch(`/api/actions/${id}`, { method: "DELETE" });
-    toast("Ação eliminada", "success");
-    loadActions();
-  } catch (err) { toast(err.message, "error"); }
-}
-
-document.getElementById("action-filter-status")?.addEventListener("change", loadActions);
-
-// ---- MODAL UTILS ----
-
-function closeModal(id) {
-  document.getElementById(id).classList.remove("open");
-}
-
-document.querySelectorAll(".modal-overlay").forEach(m => {
-  m.addEventListener("click", e => {
-    if (e.target === m) m.classList.remove("open");
-  });
+document.getElementById("filter-status").addEventListener("change", e => {
+  if (e.target.value) currentFilters.status = e.target.value;
+  else delete currentFilters.status;
+  loadProblems();
 });
-
-document.querySelectorAll("[data-close-modal]").forEach(btn => {
-  btn.addEventListener("click", () => closeModal(btn.dataset.closeModal));
+document.getElementById("filter-priority").addEventListener("change", e => {
+  if (e.target.value) currentFilters.priority = e.target.value;
+  else delete currentFilters.priority;
+  loadProblems();
 });
-
-// ---- TABS inside detail modal ----
-
-document.querySelectorAll(".tab-btn").forEach(btn => {
-  btn.addEventListener("click", () => {
-    const group = btn.dataset.tabGroup;
-    const target = btn.dataset.tab;
-    document.querySelectorAll(`.tab-btn[data-tab-group="${group}"]`).forEach(b => b.classList.remove("active"));
-    document.querySelectorAll(`.tab-pane[data-tab-group="${group}"]`).forEach(p => p.classList.remove("active"));
-    btn.classList.add("active");
-    document.querySelector(`.tab-pane[data-tab-group="${group}"][data-tab="${target}"]`).classList.add("active");
-  });
+document.getElementById("filter-area").addEventListener("input", e => {
+  if (e.target.value.trim()) currentFilters.area = e.target.value.trim();
+  else delete currentFilters.area;
+  loadProblems();
 });
-
-// ---- SEED ----
-
-async function seedDatabase() {
-  const btn = document.getElementById("btn-seed");
-  if (btn) { btn.disabled = true; btn.textContent = "A carregar..."; }
-
-  try {
-    const res = await apiFetch("/api/seed", { method: "POST" });
-    toast(res.message, "success");
-    loadDashboard();
-  } catch (err) {
-    toast("Erro ao carregar dados: " + err.message, "error");
-  } finally {
-    if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="database"></i> Carregar Dados de Exemplo'; renderIcons(); }
-  }
-}
-
-// ---- INIT ----
-
-renderIcons();
-navigate("dashboard");

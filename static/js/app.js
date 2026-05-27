@@ -74,8 +74,51 @@ function navigate(view) {
   if (view === "actions") loadActions();
 }
 
-document.querySelectorAll(".nav-item[data-view]").forEach(item => {
-  item.addEventListener("click", () => navigate(item.dataset.view));
+// ---- DELEGATED CLICK HANDLER ----
+// Um único listener no document trata todos os data-nav / data-view / data-action,
+// evitando reanexar handlers a cada render.
+
+document.addEventListener("click", e => {
+  const navEl = e.target.closest("[data-nav]");
+  if (navEl) { navigate(navEl.dataset.nav); return; }
+
+  const viewEl = e.target.closest("[data-view]");
+  if (viewEl) { navigate(viewEl.dataset.view); return; }
+
+  const el = e.target.closest("[data-action]");
+  if (!el) return;
+
+  const action = el.dataset.action;
+  const id = el.dataset.id ? parseInt(el.dataset.id, 10) : null;
+
+  if (el.tagName === "A") e.preventDefault();
+
+  switch (action) {
+    case "seed":               seedDatabase(); break;
+    case "export-excel":       exportActionsExcel(); break;
+    case "open-detail":        openProblemDetail(id); break;
+    case "open-edit":          openEditProblem(id); break;
+    case "delete-problem":     deleteProblem(id); break;
+    case "open-add-action":    openAddAction(id); break;
+    case "gen-5w1h":           generate5W1H(); break;
+    case "gen-a3":             generateA3(); break;
+    case "gen-suggestions":    generateSuggestions(); break;
+    case "gen-ai-actions":     generateAIActions(id); break;
+    case "export-a3-pdf":      exportA3PDF(); break;
+    case "toggle-action":      toggleAction(id, el.dataset.status); break;
+    case "toggle-action-list":
+      toggleAction(id, el.dataset.status);
+      loadActions();
+      break;
+    case "delete-action":
+      deleteAction(id, parseInt(el.dataset.problemId, 10));
+      break;
+    case "delete-action-global": deleteActionGlobal(id); break;
+    case "close-ai-suggestions": el.closest(".a3-section")?.remove(); break;
+    case "add-suggested-action":
+      addSuggestedAction(id, parseInt(el.dataset.index, 10), el.dataset.deadline);
+      break;
+  }
 });
 
 // ---- DASHBOARD ----
@@ -177,7 +220,7 @@ function renderAlertsPanel(actions) {
 
     const dl = new Date(a.deadline + "T00:00:00").toLocaleDateString("pt-PT", { day: "2-digit", month: "short" });
 
-    return `<div class="alert-item ${urgencyClass}" onclick="openProblemDetail(${a.problem_id})">
+    return `<div class="alert-item ${urgencyClass}" data-action="open-detail" data-id="${a.problem_id}">
       <span class="alert-chip ${chipClass}">${chipLabel}</span>
       <div class="alert-info">
         <div class="alert-action-title">${a.title}</div>
@@ -262,7 +305,7 @@ async function loadDashboard() {
   } else {
     recentEl.innerHTML = `<div class="table-wrap"><table>
       <thead><tr><th>Título</th><th>Área</th><th>Responsável</th><th>Prioridade</th><th>Data</th></tr></thead>
-      <tbody>${recent.slice(0, 8).map(p => `<tr style="cursor:pointer" onclick="openProblemDetail(${p.id})">
+      <tbody>${recent.slice(0, 8).map(p => `<tr style="cursor:pointer" data-action="open-detail" data-id="${p.id}">
         <td><span class="truncate" style="max-width:200px;display:block">${p.title}</span></td>
         <td>${p.area}</td>
         <td>${p.responsible}</td>
@@ -299,7 +342,7 @@ function renderProblemsTable(problems) {
     </tr></thead>
     <tbody>${problems.map(p => `<tr>
       <td style="color:var(--gray-400);font-size:12px">#${p.id}</td>
-      <td><span class="truncate" style="display:block;max-width:220px;cursor:pointer;font-weight:500;color:var(--primary)" onclick="openProblemDetail(${p.id})">${p.title}</span></td>
+      <td><span class="truncate" style="display:block;max-width:220px;cursor:pointer;font-weight:500;color:var(--primary)" data-action="open-detail" data-id="${p.id}">${p.title}</span></td>
       <td>${p.area}</td>
       <td>${p.responsible}</td>
       <td>${badge(p.priority, PRIORITY_LABELS)}</td>
@@ -307,9 +350,9 @@ function renderProblemsTable(problems) {
       <td>${formatDate(p.created_at)}</td>
       <td>
         <div class="flex gap-2">
-          <button class="btn btn-sm btn-secondary btn-icon" title="Ver detalhe" onclick="openProblemDetail(${p.id})"><i data-lucide="eye"></i></button>
-          <button class="btn btn-sm btn-secondary btn-icon" title="Editar" onclick="openEditProblem(${p.id})"><i data-lucide="pencil"></i></button>
-          <button class="btn btn-sm btn-danger btn-icon" title="Apagar" onclick="deleteProblem(${p.id})"><i data-lucide="trash-2"></i></button>
+          <button class="btn btn-sm btn-secondary btn-icon" title="Ver detalhe" data-action="open-detail" data-id="${p.id}"><i data-lucide="eye"></i></button>
+          <button class="btn btn-sm btn-secondary btn-icon" title="Editar" data-action="open-edit" data-id="${p.id}"><i data-lucide="pencil"></i></button>
+          <button class="btn btn-sm btn-danger btn-icon" title="Apagar" data-action="delete-problem" data-id="${p.id}"><i data-lucide="trash-2"></i></button>
         </div>
       </td>
     </tr>`).join("")}</tbody>
@@ -444,7 +487,7 @@ async function openProblemDetail(id) {
   } else {
     w5el.innerHTML = `<div class="empty-state" style="padding:20px">
       <p>Análise 5W1H ainda não gerada.</p>
-      <button class="btn btn-primary mt-2" onclick="generate5W1H()"><i data-lucide="sparkles"></i> Gerar com IA</button>
+      <button class="btn btn-primary mt-2" data-action="gen-5w1h"><i data-lucide="sparkles"></i> Gerar com IA</button>
     </div>`;
   }
 
@@ -458,14 +501,14 @@ async function openProblemDetail(id) {
   } else {
     a3el.innerHTML = `<div class="empty-state" style="padding:20px">
       <p>Relatório A3 ainda não gerado.</p>
-      <button class="btn btn-primary mt-2" onclick="generateA3()"><i data-lucide="sparkles"></i> Gerar com IA</button>
+      <button class="btn btn-primary mt-2" data-action="gen-a3"><i data-lucide="sparkles"></i> Gerar com IA</button>
     </div>`;
   }
 
   // Suggestions — always start with empty-state button
   document.getElementById("detail-suggestions").innerHTML = `<div class="empty-state" style="padding:20px">
     <p>Sugestões de melhoria ainda não geradas.</p>
-    <button class="btn btn-primary mt-2" onclick="generateSuggestions()"><i data-lucide="sparkles"></i> Gerar com IA</button>
+    <button class="btn btn-primary mt-2" data-action="gen-suggestions"><i data-lucide="sparkles"></i> Gerar com IA</button>
   </div>`;
 
   // Actions
@@ -479,8 +522,8 @@ async function loadDetailActions(problemId) {
   const actions = await apiFetch(`/api/actions?problem_id=${problemId}`);
   const el = document.getElementById("detail-actions");
   const toolbarBtns = `<div class="flex gap-2" style="margin-bottom:12px">
-    <button class="btn btn-sm btn-primary" onclick="openAddAction(${problemId})"><i data-lucide="plus"></i> Adicionar Ação</button>
-    <button class="btn btn-sm btn-secondary" id="btn-suggest-actions" onclick="generateAIActions(${problemId})"><i data-lucide="sparkles"></i> Sugerir com IA</button>
+    <button class="btn btn-sm btn-primary" data-action="open-add-action" data-id="${problemId}"><i data-lucide="plus"></i> Adicionar Ação</button>
+    <button class="btn btn-sm btn-secondary" id="btn-suggest-actions" data-action="gen-ai-actions" data-id="${problemId}"><i data-lucide="sparkles"></i> Sugerir com IA</button>
   </div>`;
   if (actions.length === 0) {
     el.innerHTML = `${toolbarBtns}<div class="empty-state" style="padding:16px"><p>Nenhuma ação registada</p></div>`;
@@ -491,7 +534,7 @@ async function loadDetailActions(problemId) {
     const over = isOverdue(a.deadline, a.status);
     const done = a.status === "completed";
     return `<div class="action-card">
-      <div class="action-check ${done ? "done" : ""}" onclick="toggleAction(${a.id}, '${done ? "pending" : "completed"}')">
+      <div class="action-check ${done ? "done" : ""}" data-action="toggle-action" data-id="${a.id}" data-status="${done ? "pending" : "completed"}">
         ${done ? '<i data-lucide="check"></i>' : ""}
       </div>
       <div class="action-info">
@@ -501,7 +544,7 @@ async function loadDetailActions(problemId) {
       <div>
         <div class="action-deadline ${over ? "overdue" : ""}"><i data-lucide="calendar"></i>${a.deadline}</div>
       </div>
-      <button class="btn btn-sm btn-danger btn-icon" onclick="deleteAction(${a.id}, ${problemId})"><i data-lucide="trash-2"></i></button>
+      <button class="btn btn-sm btn-danger btn-icon" data-action="delete-action" data-id="${a.id}" data-problem-id="${problemId}"><i data-lucide="trash-2"></i></button>
     </div>`;
   }).join("");
   renderIcons();
@@ -540,7 +583,7 @@ async function generateAIActions(problemId) {
     toast("Sugestões de ações geradas!", "success");
   } catch (err) {
     container.innerHTML = `<div class="loading" style="color:var(--danger);margin:12px 0">Erro: ${err.message}</div>
-      <button class="btn btn-sm btn-secondary" onclick="generateAIActions(${problemId})" style="margin-bottom:12px">Tentar novamente</button>`;
+      <button class="btn btn-sm btn-secondary" data-action="gen-ai-actions" data-id="${problemId}" style="margin-bottom:12px">Tentar novamente</button>`;
     toast(err.message, "error");
   } finally {
     if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="sparkles"></i> Sugerir com IA'; renderIcons(); }
@@ -557,7 +600,7 @@ function renderAISuggestedActions(el, actions, problemId) {
     <div class="a3-section" style="margin-top:12px">
       <div class="a3-section-title" style="display:flex;justify-content:space-between;align-items:center">
         <span><i data-lucide="sparkles"></i> Ações Sugeridas pela IA</span>
-        <button class="btn btn-sm btn-secondary" onclick="this.closest('.a3-section').remove()"><i data-lucide="x"></i> Fechar</button>
+        <button class="btn btn-sm btn-secondary" data-action="close-ai-suggestions"><i data-lucide="x"></i> Fechar</button>
       </div>
       ${actions.map((a, i) => {
         const deadline = new Date(today);
@@ -569,7 +612,7 @@ function renderAISuggestedActions(el, actions, problemId) {
             <div class="action-meta" style="font-size:12px;color:var(--gray-500)">${a.description || ""}</div>
             <div class="action-meta">${a.responsible} • <i data-lucide="calendar"></i> ${deadlineStr}</div>
           </div>
-          <button class="btn btn-sm btn-primary" id="ai-action-btn-${i}" onclick="addSuggestedAction(${problemId}, ${i}, '${deadlineStr}')"><i data-lucide="plus"></i> Adicionar</button>
+          <button class="btn btn-sm btn-primary" id="ai-action-btn-${i}" data-action="add-suggested-action" data-id="${problemId}" data-index="${i}" data-deadline="${deadlineStr}"><i data-lucide="plus"></i> Adicionar</button>
         </div>`;
       }).join("")}
     </div>`;
@@ -650,7 +693,7 @@ async function generate5W1H() {
     toast("Análise 5W1H gerada!", "success");
   } catch (err) {
     el.innerHTML = `<div class="loading" style="color:var(--danger)">Erro: ${err.message}</div>
-      <button class="btn btn-primary" onclick="generate5W1H()" style="margin:12px auto;display:block">Tentar novamente</button>`;
+      <button class="btn btn-primary" data-action="gen-5w1h" style="margin:12px auto;display:block">Tentar novamente</button>`;
     toast(err.message, "error");
   }
 }
@@ -667,7 +710,7 @@ function render5W1H(el, a) {
   el.innerHTML = `
     <div class="flex justify-between items-center mb-3">
       <span class="ai-badge"><i data-lucide="sparkles"></i> Gerado por IA</span>
-      <button class="btn btn-sm btn-secondary" onclick="generate5W1H()"><i data-lucide="refresh-cw"></i> Regenerar</button>
+      <button class="btn btn-sm btn-secondary" data-action="gen-5w1h"><i data-lucide="refresh-cw"></i> Regenerar</button>
     </div>
     <div class="w5h1-grid">${fields.map(([l, v]) => `
       <div class="w5h1-item">
@@ -705,7 +748,7 @@ async function generateA3() {
     toast("Relatório A3 gerado!", "success");
   } catch (err) {
     el.innerHTML = `<div class="loading" style="color:var(--danger)">Erro: ${err.message}</div>
-      <button class="btn btn-primary" onclick="generateA3()" style="margin:12px auto;display:block">Tentar novamente</button>`;
+      <button class="btn btn-primary" data-action="gen-a3" style="margin:12px auto;display:block">Tentar novamente</button>`;
     toast(err.message, "error");
   }
 }
@@ -724,8 +767,8 @@ function renderA3(el, r) {
     <div class="flex justify-between items-center mb-3">
       <span class="ai-badge"><i data-lucide="sparkles"></i> Relatório A3 - IA</span>
       <div class="flex gap-2">
-        <button class="btn btn-sm btn-secondary" onclick="generateA3()"><i data-lucide="refresh-cw"></i> Regenerar</button>
-        <button class="btn btn-sm btn-primary" onclick="exportA3PDF()"><i data-lucide="download"></i> Exportar PDF</button>
+        <button class="btn btn-sm btn-secondary" data-action="gen-a3"><i data-lucide="refresh-cw"></i> Regenerar</button>
+        <button class="btn btn-sm btn-primary" data-action="export-a3-pdf"><i data-lucide="download"></i> Exportar PDF</button>
       </div>
     </div>
     <div class="a3-section" style="background:var(--primary-light);border-color:var(--primary)">
@@ -806,7 +849,7 @@ function renderA3(el, r) {
 async function exportA3PDF() {
   if (!_currentA3Report) return;
 
-  const btn = document.querySelector("button[onclick='exportA3PDF()']");
+  const btn = document.querySelector('[data-action="export-a3-pdf"]');
   if (btn) { btn.disabled = true; btn.textContent = 'A gerar PDF...'; }
 
   try {
@@ -1114,7 +1157,7 @@ async function generateSuggestions() {
     toast("Sugestões geradas!", "success");
   } catch (err) {
     el.innerHTML = `<div class="loading" style="color:var(--danger)">Erro: ${err.message}</div>
-      <button class="btn btn-primary" onclick="generateSuggestions()" style="margin:12px auto;display:block">Tentar novamente</button>`;
+      <button class="btn btn-primary" data-action="gen-suggestions" style="margin:12px auto;display:block">Tentar novamente</button>`;
   }
 }
 
@@ -1127,7 +1170,7 @@ function renderSuggestions(el, s) {
   el.innerHTML = `
     <div class="flex justify-between items-center mb-3">
       <span class="ai-badge"><i data-lucide="sparkles"></i> Sugestões por IA</span>
-      <button class="btn btn-sm btn-secondary" onclick="generateSuggestions()"><i data-lucide="refresh-cw"></i> Regenerar</button>
+      <button class="btn btn-sm btn-secondary" data-action="gen-suggestions"><i data-lucide="refresh-cw"></i> Regenerar</button>
     </div>
     <div class="suggestions-grid">${cols.map(col => `
       <div>
@@ -1178,14 +1221,14 @@ function renderActionsTable(actions) {
       return `<tr>
         <td style="color:var(--gray-400);font-size:12px">#${a.id}</td>
         <td><span style="font-weight:500">${a.title}</span></td>
-        <td><a href="#" onclick="openProblemDetail(${a.problem_id});return false" style="color:var(--primary);font-size:13px">#${a.problem_id}</a></td>
+        <td><a href="#" data-action="open-detail" data-id="${a.problem_id}" style="color:var(--primary);font-size:13px">#${a.problem_id}</a></td>
         <td>${a.responsible}</td>
         <td class="${over ? "text-danger" : ""}" style="${over ? "color:var(--danger);font-weight:600" : ""}">${a.deadline}${over ? ' <i data-lucide="alert-triangle" style="width:13px;height:13px;vertical-align:-2px;color:var(--danger)"></i>' : ""}</td>
         <td>${badge(a.status, STATUS_LABELS)}</td>
         <td>
           <div class="flex gap-2">
-            ${a.status !== "completed" ? `<button class="btn btn-sm btn-success btn-icon" title="Marcar concluída" onclick="toggleAction(${a.id},'completed');loadActions()"><i data-lucide="check"></i></button>` : `<button class="btn btn-sm btn-secondary btn-icon" title="Reabrir" onclick="toggleAction(${a.id},'pending');loadActions()"><i data-lucide="undo-2"></i></button>`}
-            <button class="btn btn-sm btn-danger btn-icon" onclick="deleteActionGlobal(${a.id})"><i data-lucide="trash-2"></i></button>
+            ${a.status !== "completed" ? `<button class="btn btn-sm btn-success btn-icon" title="Marcar concluída" data-action="toggle-action-list" data-id="${a.id}" data-status="completed"><i data-lucide="check"></i></button>` : `<button class="btn btn-sm btn-secondary btn-icon" title="Reabrir" data-action="toggle-action-list" data-id="${a.id}" data-status="pending"><i data-lucide="undo-2"></i></button>`}
+            <button class="btn btn-sm btn-danger btn-icon" data-action="delete-action-global" data-id="${a.id}"><i data-lucide="trash-2"></i></button>
           </div>
         </td>
       </tr>`;

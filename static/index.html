@@ -46,7 +46,7 @@
       <div class="topbar-title" id="topbar-title">Dashboard</div>
       <div class="topbar-subtitle">Gestão de Kaizen e Melhoria Contínua</div>
     </div>
-    <button class="btn btn-primary" onclick="navigate('new-problem')">
+    <button class="btn btn-primary" data-nav="new-problem">
       <i data-lucide="plus"></i> Novo Problema
     </button>
   </header>
@@ -129,7 +129,7 @@
       <div class="card">
         <div class="card-header">
           <span class="card-title"><i data-lucide="circle-alert"></i> Problemas em Aberto Recentes</span>
-          <button class="btn btn-sm btn-secondary" onclick="navigate('problems')">Ver todos</button>
+          <button class="btn btn-sm btn-secondary" data-nav="problems">Ver todos</button>
         </div>
         <div class="card-body" style="padding:0">
           <div id="recent-problems"></div>
@@ -141,7 +141,7 @@
           <span style="font-size:13px;font-weight:600;color:var(--gray-600)">Base de dados vazia?</span>
           <span style="font-size:13px;color:var(--gray-400);margin-left:6px">Carregue dados industriais de exemplo para explorar todas as funcionalidades.</span>
         </div>
-        <button class="btn btn-sm btn-secondary" onclick="seedDatabase()" id="btn-seed" style="white-space:nowrap;flex-shrink:0">
+        <button class="btn btn-sm btn-secondary" data-action="seed" id="btn-seed" style="white-space:nowrap;flex-shrink:0">
           <i data-lucide="database"></i> Carregar Dados de Exemplo
         </button>
       </div>
@@ -165,7 +165,7 @@
           <option value="low">Baixa</option>
         </select>
         <input id="filter-area" placeholder="Filtrar por área..." style="min-width:180px">
-        <button class="btn btn-primary" onclick="navigate('new-problem')"><i data-lucide="plus"></i> Novo Problema</button>
+        <button class="btn btn-primary" data-nav="new-problem"><i data-lucide="plus"></i> Novo Problema</button>
       </div>
       <div class="card">
         <div id="problems-list"></div>
@@ -210,7 +210,7 @@
             </div>
             <div class="flex gap-2">
               <button type="submit" class="btn btn-primary">Registar Problema</button>
-              <button type="button" class="btn btn-secondary" onclick="navigate('problems')">Cancelar</button>
+              <button type="button" class="btn btn-secondary" data-nav="problems">Cancelar</button>
             </div>
           </form>
         </div>
@@ -227,7 +227,7 @@
           <option value="completed">Concluída</option>
           <option value="overdue">Atrasada</option>
         </select>
-        <button class="btn btn-secondary" onclick="exportActionsExcel()"><i data-lucide="download"></i> Exportar Excel</button>
+        <button class="btn btn-secondary" data-action="export-excel"><i data-lucide="download"></i> Exportar Excel</button>
       </div>
       <div class="card">
         <div id="actions-list"></div>

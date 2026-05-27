@@ -44,67 +44,61 @@ O **Kaizen Assistant** é uma aplicação web single-page (SPA) que digitaliza o
 
 ### Dashboard Principal
 
-> [SCREENSHOT: Dashboard principal — mostrar os 7 KPI cards (Total Kaizens, Em Aberto, Em Progresso, Concluídos, Taxa de Conclusão, Total de Ações, Ações Atrasadas) e o gráfico de linha "Evolução de Kaizens — Últimos 6 Meses" logo abaixo]
+![Dashboard Principal](docs/screenshots/dashboard.png)
 
 ---
 
 ### Painel de Alertas de Ações Urgentes
 
-> [SCREENSHOT: Dashboard com o painel de alertas activo — mostrar o banner amarelo "⚠️ Ações com Prazo nos Próximos 7 Dias" com pelo menos 3 itens: um chip vermelho "HOJE" ou "AMANHÃ", um chip laranja "X DIAS" e um chip cinzento "X DIAS", cada um com o título da ação, problema associado, responsável e data limite]
+![Painel de Alertas](docs/screenshots/alertas.png)
 
 ---
 
 ### Gráficos de Análise do Dashboard
 
-> [SCREENSHOT: Secção inferior do Dashboard — mostrar em simultâneo o gráfico de barras horizontais "Problemas por Prioridade" (Crítica/Alta/Média/Baixa) e o gráfico "Problemas por Área (Top 5)" com as áreas do seed data (Produção, Embalagem, Maquinagem, Soldadura, Armazém)]
+![Gráficos](docs/screenshots/graficos.png)
 
 ---
 
 ### Lista de Problemas Kaizen
 
-> [SCREENSHOT: View "Problemas Kaizen" — mostrar a tabela completa com os 5 problemas do seed data, os filtros de Estado/Prioridade/Área no topo, e as badges coloridas de prioridade (Crítica em roxo, Alta em vermelho, Média em amarelo) e estado]
+![Lista de Problemas](docs/screenshots/problemas.png)
 
 ---
 
 ### Registo de Novo Problema
 
-> [SCREENSHOT: View "Novo Problema" — mostrar o formulário limpo com os campos Título, Descrição, Área/Responsável e o selector de Prioridade com as opções coloridas (🟢 Baixa, 🟡 Média, 🔴 Alta, 🟣 Crítica)]
+![Novo Problema](docs/screenshots/novo-problema.png)
 
 ---
 
 ### Análise 5W1H Gerada por IA
 
-> [SCREENSHOT: Modal de detalhe de um problema, separador "🔍 Análise 5W1H" — mostrar a grelha com os 6 campos (O Quê, Porquê, Onde, Quando, Quem, Como) preenchidos pela IA, e abaixo as secções "Causas Raiz Identificadas" e "Ações Imediatas Sugeridas" com listas de bullets]
+![Análise 5W1H](docs/screenshots/5w1h.png)
 
 ---
 
 ### Relatório A3 Completo
 
-> [SCREENSHOT: Modal de detalhe, separador "📄 Relatório A3" — mostrar o relatório gerado pela IA com as secções visíveis: Cabeçalho (título/responsável/área), Contexto/Estado Atual/Estado Futuro em grelha, e o início do Diagrama de Ishikawa (6M) com as 6 categorias preenchidas]
-
----
-
-### Exportação do Relatório A3 para PDF
-
-> [SCREENSHOT: O ficheiro PDF exportado aberto no leitor — mostrar o layout multi-página com o cabeçalho azul "RELATÓRIO A3 — KAIZEN", as 3 colunas de Contexto/Estado Atual/Estado Futuro, e o Diagrama de Ishikawa, evidenciando a formatação profissional com cores por secção]
+![Relatório A3](docs/screenshots/a3.png)
 
 ---
 
 ### Sugestões de Melhoria por IA
 
-> [SCREENSHOT: Modal de detalhe, separador "💡 Sugestões IA" — mostrar a grelha de 3 colunas: "Quick Wins (≤1 semana)", "Médio Prazo (1-3 meses)", "Longo Prazo (3+ meses)", com pelo menos 2 cards em cada coluna mostrando título, descrição e as tags de Impacto/Esforço coloridas]
+![Sugestões IA](docs/screenshots/sugestoes.png)
 
 ---
 
 ### Tracker de Ações
 
-> [SCREENSHOT: View "Tracker de Ações" — mostrar a tabela com várias ações de diferentes problemas, destacando: uma linha vermelha com "⚠️" indicando prazo ultrapassado, o filtro de estado no topo, e o botão "⬇ Exportar Excel" à direita dos filtros]
+![Tracker de Ações](docs/screenshots/tracker.png)
 
 ---
 
 ### Ações Sugeridas por IA (dentro do Detalhe)
 
-> [SCREENSHOT: Modal de detalhe, separador "⚙️ Ações", após clicar "✨ Sugerir com IA" — mostrar os cards de ações sugeridas com título, descrição, responsável sugerido, data calculada e botão "+ Adicionar" em cada um]
+![Ações Sugeridas por IA](docs/screenshots/acoes-ia.png)
 
 ---
 
